@@ -1,0 +1,144 @@
+Looking at the screenshot, I can see the text layout issues in the free trial button. The text appears to be overlapping or misaligned. Here's a Replit AI prompt to fix this:
+
+## Replit AI Prompt: Fix Pricing Page Trial Button Text Layout
+
+### Problem Description
+The "Start Free Trial" button on the pricing page has text layout issues where the subtitle text "7 days free, then $64.99/month" is overlapping or positioned incorrectly behind the main text.
+
+### Required Fix
+
+#### **Fix Button Text Layout**
+In the pricing page component, update the trial button styling:
+
+```typescript
+// Fix the button structure in client/src/pages/pricing.tsx or client/src/components/pricing/PaymentButton.tsx:
+
+// Current problematic structure:
+<button class="enhanced-btn">
+  <span class="btn-text">Start Free Trial</span>
+  <span class="btn-subtext">7 days free, then $64.99/month</span>
+</button>
+
+// Fix with proper CSS classes:
+```
+
+#### **CSS Fixes Required**
+Update the button styling to properly separate text lines:
+
+```css
+/* Fix these styles in the component: */
+
+.enhanced-btn {
+  height: auto; /* Remove fixed height */
+  min-height: 60px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px; /* Add gap between text lines */
+}
+
+.btn-text {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0; /* Remove any margins */
+}
+
+.btn-subtext {
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.2;
+  margin: 0; /* Remove any margins */
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+/* Ensure no z-index conflicts */
+.enhanced-btn * {
+  position: relative;
+  z-index: 1;
+}
+```
+
+#### **Alternative Single-Line Solution**
+If two-line text continues to have issues, implement a single-line version:
+
+```typescript
+// Option 1: Single line button
+<button className="enhanced-btn-single">
+  Start Free Trial
+</button>
+
+// Option 2: Move subtitle outside button
+<div className="trial-section">
+  <button className="enhanced-btn-single">
+    Start Free Trial
+  </button>
+  <p className="trial-info">7 days free, then $64.99/month</p>
+</div>
+```
+
+#### **Mobile-Specific Fixes**
+Ensure proper mobile display:
+
+```css
+/* Add responsive text sizing */
+@media (max-width: 375px) {
+  .btn-text {
+    font-size: 15px;
+  }
+  
+  .btn-subtext {
+    font-size: 11px;
+  }
+  
+  .enhanced-btn {
+    min-height: 56px;
+    padding: 14px 16px;
+  }
+}
+```
+
+#### **Debug Steps**
+Add these temporary styles to identify the issue:
+
+```css
+/* Temporary debug styles - remove after fixing */
+.enhanced-btn {
+  background: red !important; /* See button boundaries */
+}
+
+.btn-text {
+  background: yellow !important; /* See main text area */
+}
+
+.btn-subtext {
+  background: green !important; /* See subtitle area */
+}
+```
+
+### Implementation Priority
+
+1. **First**: Fix the CSS flexbox layout with proper gap spacing
+2. **Second**: Ensure no fixed heights are causing text overflow
+3. **Third**: Check for any z-index or position conflicts
+4. **Fourth**: Test on mobile screen size (375px width)
+
+### Testing Requirements
+
+After fixing, verify:
+- ✅ Both text lines are clearly visible and separated
+- ✅ No text overlap or cutoff
+- ✅ Button maintains proper height
+- ✅ Text is centered in button
+- ✅ Works on mobile screen sizes
+- ✅ Maintains gradient background and animations
+
+### File to Modify
+Look for the trial button component in:
+- `client/src/pages/pricing.tsx`
+- `client/src/components/pricing/PaymentButton.tsx`
+- Or wherever the "Start Free Trial" button is defined
+
+Fix the text layout issues while maintaining the enhanced button design and animations.

@@ -1,0 +1,186 @@
+## Replit AI Prompt: Fix Pricing Page Navigation and Content Gating
+
+### Problem Description
+The pricing page is not accessible in the app and locked educational content doesn't redirect users to the pricing page when clicked. Need to implement proper routing and content gating redirects.
+
+### Required Fixes
+
+#### 1. **Add Pricing Route to Main Router**
+In `client/src/App.tsx`, add the pricing page route:
+
+```typescript
+// Add this import at the top with other page imports:
+import Pricing from "@/pages/pricing";
+
+// In the authenticated users section (after existing routes), add:
+<Route path="/pricing" component={Pricing} />
+<Route path="/upgrade" component={Pricing} />
+```
+
+#### 2. **Create Pricing Page Component**
+Create `client/src/pages/pricing.tsx` with the enhanced toggle design from Concept 2:
+
+```typescript
+// Implement the full pricing page with:
+- Monthly/Yearly toggle with animated slider
+- Dynamic pricing display ($64.99 monthly, $599.99 yearly)
+- Animated "Save 23%" pill that pulses
+- Interactive feature grid with hover effects
+- Enhanced CTA button with shine animation
+- Mobile-optimized layout (max-width 375px)
+- Integration with existing auth system and API
+```
+
+#### 3. **Implement Content Gating Components**
+Create upgrade redirect components that trigger when users click locked content:
+
+```typescript
+// Create client/src/components/upgrade-prompts/PremiumGate.tsx:
+interface PremiumGateProps {
+  children: React.ReactNode;
+  isLocked: boolean;
+  onUpgradeClick: () => void;
+}
+
+// Create client/src/components/upgrade-prompts/UpgradePrompt.tsx:
+- Show "Upgrade to Premium" overlay on locked content
+- Redirect to /pricing when clicked
+- Show trial information if applicable
+```
+
+#### 4. **Fix Learning Module Navigation**
+Update existing learning modules to redirect to pricing page when locked content is clicked:
+
+```typescript
+// In learning components, add navigation logic:
+import { useLocation } from 'wouter';
+
+const [, navigate] = useLocation();
+
+const handleUpgradeClick = () => {
+  navigate('/pricing');
+};
+
+// Wrap locked content with upgrade prompts:
+{isContentLocked ? (
+  <UpgradePrompt onUpgradeClick={handleUpgradeClick} />
+) : (
+  <ActualContent />
+)}
+```
+
+#### 5. **Add Navigation Triggers Throughout App**
+Implement upgrade navigation in these locations:
+
+```typescript
+// Add upgrade buttons/links in:
+- Settings/Profile page → "Upgrade to Premium"
+- Community feed → "Get unlimited access" for post limits
+- Learning dashboard → "Unlock all modules"
+- Progress page → "Access premium tracking"
+
+// All should navigate to '/pricing' when clicked
+```
+
+#### 6. **Add Trial Banner with Navigation**
+Create a trial countdown banner that links to pricing:
+
+```typescript
+// Create client/src/components/trial/TrialBanner.tsx:
+- Show days remaining in trial
+- "Upgrade Now" button that navigates to /pricing
+- Display at top of main pages for trial users
+```
+
+#### 7. **Update Bottom Navigation (if applicable)**
+If there's a bottom navigation bar, ensure users can access pricing:
+
+```typescript
+// Add pricing access through:
+- Settings menu item
+- Profile menu item
+- Or dedicated "Premium" tab
+```
+
+### Implementation Requirements
+
+#### **Routing Integration**
+```typescript
+// Use existing Wouter routing patterns:
+import { useLocation } from 'wouter';
+const [, navigate] = useLocation();
+navigate('/pricing');
+```
+
+#### **API Integration**
+```typescript
+// Connect to existing subscription endpoints:
+- GET /api/subscription/status (check current plan)
+- POST /api/subscription/create-trial (start trial)
+- Use existing session management
+```
+
+#### **State Management**
+```typescript
+// Use existing patterns:
+- useAuth hook for user session
+- TanStack Query for API calls
+- Existing error handling with toast notifications
+```
+
+#### **Styling Requirements**
+```typescript
+// Match existing app design:
+- Use existing Tailwind CSS classes
+- Follow mobile-first approach (max-width 375px)
+- Match brand colors and gradients
+- Consistent with existing UI components
+```
+
+### Testing Checklist
+
+After implementation, verify these work:
+
+1. **Direct Access**: Navigate to `/pricing` in browser URL
+2. **From Locked Content**: Click any locked educational content → redirects to pricing
+3. **From Settings**: Settings menu → Upgrade option → pricing page
+4. **Navigation Back**: Back button works from pricing page
+5. **Mobile Responsive**: All elements work on mobile screen sizes
+6. **Payment Flow**: CTA buttons connect to existing payment system
+
+### File Structure to Create/Modify
+
+```
+client/src/
+├── pages/
+│   └── pricing.tsx (NEW)
+├── components/
+│   ├── pricing/ (NEW FOLDER)
+│   │   ├── PricingCard.tsx
+│   │   ├── PlanToggle.tsx
+│   │   └── FeatureGrid.tsx
+│   └── upgrade-prompts/ (NEW FOLDER)
+│       ├── PremiumGate.tsx
+│       ├── UpgradePrompt.tsx
+│       └── TrialBanner.tsx
+└── App.tsx (MODIFY - add routes)
+```
+
+### Integration Points
+
+- **Preserve existing auth system** - don't change user management
+- **Use existing API endpoints** - connect to current subscription system
+- **Follow existing code patterns** - match current component structure
+- **Maintain existing navigation** - enhance, don't replace current routing
+
+### Success Criteria
+
+- ✅ `/pricing` URL loads pricing page correctly
+- ✅ Locked educational content redirects to pricing when clicked  
+- ✅ Toggle between monthly/yearly plans works
+- ✅ "Start Free Trial" button connects to payment system
+- ✅ Back navigation works properly
+- ✅ Mobile layout is responsive and usable
+- ✅ Integrates seamlessly with existing app architecture
+
+Fix these routing and navigation issues while maintaining all existing functionality and following current code patterns.

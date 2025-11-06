@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#5C5D47" />
+    <meta name="description" content="Learn trading and investing with guided lessons designed for beginners" />
+    
+    <title>Investamind - Learn Trading & Investing</title>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzVDNUQ0NyIvPgo8cGF0aCBkPSJNOCAxNkM4IDEzLjM5NSA5LjM5NSAxMS4wNTYgMTEuNzE0IDkuODEwQzE0LjAzMyA4LjU2NCAxNi44NzMgOC41NjQgMTkuMTkyIDkuODEwQzIxLjUxMSAxMS4wNTYgMjQgMTMuMzk1IDI0IDE2VjE4QzI0IDE5LjEwNSAyMS41MTEgMjAuOTQ0IDE5LjE5MiAyMi4xOUMyMS4wOTggMjMuNTAwIDE4LjI1OCAyMy41MDAgMTUuODE0IDIyLjQ4NkMxMy4zNzEgMjEuNDcxIDEyIDIwLjEwNSAxMiAxOEgxMlYxNloiIGZpbGw9IiM5QURCNzQiLz4KPHBhdGggZD0iTTE2IDEyQzE2IDEwLjcxMSAxNi44NzMgOS41NDQgMTguMTM2IDguODgyQzE5LjQgOC4yMjEgMjAuOTMxIDguMjIxIDIyLjE5NSA4Ljg4MkMyMy40NTggOS41NDQgMjQgMTAuNzExIDI0IDEyVjE0QzI0IDE1LjI4OSAyMy40NTggMTYuNDU2IDIyLjE5NSAxNy4xMThDMjAuOTMxIDE3Ljc3OSAxOS40IDE3Ljc3OSAxOC4xMzYgMTcuMTE4QzE2Ljg3MyAxNi40NTYgMTYgMTUuMjg5IDE2IDE0VjEyWiIgZmlsbD0iI0U4OTA0NyIvPgo8L3N2Zz4K" />
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDE4MCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIiByeD0iMjQiIGZpbGw9IiM1QzVENDciLz4KPHA%2BYXRoIGQ9Ik00NSA5MEM0NSA3NS4zMzEgNTIuODMxIDYxLjA1MSA2Ni4yMTQgNTEuODA0Qzc5LjU5NyA0Mi41NTcgOTYuOTAzIDQyLjU1NyAxMTAuMjg2IDUxLjgwNEMxMjMuNjY5IDYxLjA1MSAxMzUgNzUuMzMxIDEzNSA5MFYxMDFDMTM1IDEwOC4xNjggMTIzLjY2OSAxMTcuOTQ5IDExMC4yODYgMTI3LjE5NkMxMTguMzY4IDEzMS42MjUgMTAzLjI2OCAxMzEuNjI1IDg5LjIxNCA1MjQuMTQzQzc1LjE2MSAxMTYuNjYxIDY3LjUgMTA3LjE2OCA2Ny41IDEwMUg2Ny41Vjk0LjVaIiBmaWxsPSIjOUFEQjc0Ii8%2BCjxwYXRoIGQ9Ik05MCA2Ny41Qzk5IDYwLjEzOSA5NC45MDMgNTMuNzY0IDEwMi4yMTQgNDkuOTI5QzEwOS41MjUgNDYuMDk0IDExNy45MzEgNDYuMDk0IDEyNS4yNDIgNDkuOTI5QzEzMi41NTMgNTMuNzY0IDEzNSA2MC4xMzkgMTM1IDY3LjVWNzguNzVDMTM1IDg2LjExMSAxMzIuNTUzIDkyLjQ4NiAxMjUuMjQyIDk2LjMyMUMxMTcuOTMxIDEwMC4xNTYgMTA5LjUyNSAxMDAuMTU2IDEwMi4yMTQgOTYuMzIxQzk0LjkwMyA5Mi40ODYgOTAgODYuMTExIDkwIDc4Ljc1VjY3LjVaIiBmaWxsPSIjRTg5MDQ3Ii8%2BCjwvc3ZnPgo%3D" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Register service worker for PWA functionality -->
+    <script>
+      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
+    
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>

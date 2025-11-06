@@ -1,0 +1,203 @@
+The error shows that the API endpoint `/api/subscription/create-trial` doesn't exist or the HTTP method is wrong. Here's a Replit AI prompt to fix this:
+
+## Replit AI Prompt: Fix Trial Creation API Endpoint Error
+
+### Problem Description
+Getting error: "Failed to execute 'fetch' on 'Window': '/api/subscription/create-trial' is not a valid HTTP method." This indicates the trial creation API endpoint is missing or incorrectly implemented.
+
+### Required Fixes
+
+#### 1. **Add Missing API Route to Backend**
+In `server/routes.ts`, add the trial creation endpoint:
+
+```typescript
+// Add this route to your existing routes in server/routes.ts:
+
+app.post("/api/subscription/create-trial", async (req, res) => {
+  try {
+    const sessionId = req.cookies?.sessionId;
+    if (!sessionId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+    
+    // Check if user already has a trial or subscription
+    const existingSubscription = await storage.getUserSubscription(session.userId);
+    if (existingSubscription) {
+      return res.status(400).json({ message: "User already has a subscription or trial" });
+    }
+    
+    // Create trial subscription
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7); // 7 days from now
+    
+    const subscription = await storage.createSubscription({
+      userId: session.userId,
+      planType: 'trial',
+      status: 'trial',
+      trialStart: new Date(),
+      trialEnd: trialEndDate,
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: trialEndDate
+    });
+    
+    // Update user subscription status
+    await storage.updateUser(session.userId, {
+      subscriptionStatus: 'trial'
+    });
+    
+    res.json({
+      success: true,
+      subscription: subscription,
+      trialEndsAt: trialEndDate
+    });
+  } catch (error) {
+    console.error("Create trial error:", error);
+    res.status(500).json({ message: "Failed to create trial" });
+  }
+});
+```
+
+#### 2. **Add Storage Methods for Subscriptions**
+In `server/storage.ts`, add these methods if they don't exist:
+
+```typescript
+// Add these methods to your storage class/object:
+
+export async function getUserSubscription(userId: number) {
+  try {
+    const subscription = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.userId, userId),
+      orderBy: desc(subscriptions.createdAt)
+    });
+    return subscription;
+  } catch (error) {
+    console.error("Get user subscription error:", error);
+    return null;
+  }
+}
+
+export async function createSubscription(subscriptionData: any) {
+  try {
+    const [subscription] = await db.insert(subscriptions).values(subscriptionData).returning();
+    return subscription;
+  } catch (error) {
+    console.error("Create subscription error:", error);
+    throw error;
+  }
+}
+```
+
+#### 3. **Fix Frontend API Call**
+In the pricing page component, ensure the API call is properly formatted:
+
+```typescript
+// In client/src/pages/pricing.tsx or wherever the trial button handler is:
+
+const handleStartTrial = async () => {
+  try {
+    setLoading(true);
+    
+    const response = await fetch('/api/subscription/create-trial', {
+      method: 'POST', // Make sure method is specified
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include' // Include cookies for session
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to start trial');
+    }
+    
+    const data = await response.json();
+    
+    // Handle success - maybe redirect or update UI
+    console.log('Trial started successfully:', data);
+    
+    // Redirect to dashboard or show success message
+    navigate('/dashboard');
+    
+  } catch (error) {
+    console.error('Trial creation failed:', error);
+    // Show error toast or message
+    alert('Failed to start trial. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+#### 4. **Add Subscription Status Check Endpoint**
+Also add this endpoint to check current subscription status:
+
+```typescript
+// Add to server/routes.ts:
+
+app.get("/api/subscription/status", async (req, res) => {
+  try {
+    const sessionId = req.cookies?.sessionId;
+    if (!sessionId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+    
+    const subscription = await storage.getUserSubscription(session.userId);
+    const user = await storage.getUser(session.userId);
+    
+    res.json({
+      subscriptionStatus: user?.subscriptionStatus || 'free',
+      subscription: subscription,
+      hasActiveSubscription: subscription?.status === 'active' || subscription?.status === 'trial'
+    });
+  } catch (error) {
+    console.error("Get subscription status error:", error);
+    res.status(500).json({ message: "Failed to get subscription status" });
+  }
+});
+```
+
+#### 5. **Ensure Database Schema Exists**
+Make sure the subscriptions table exists in your database:
+
+```typescript
+// If the subscriptions table doesn't exist, you need to run:
+// npm run db:push
+
+// Or add migration to create the table based on the schema from the earlier prompt
+```
+
+### File Locations to Check/Modify
+
+1. **`server/routes.ts`** - Add the trial creation endpoint
+2. **`server/storage.ts`** - Add subscription storage methods  
+3. **`client/src/pages/pricing.tsx`** - Fix the frontend API call
+4. **Database** - Ensure subscriptions table exists
+
+### Testing Steps
+
+After implementing the fixes:
+
+1. **Test API endpoint directly**: Use browser dev tools or Postman to POST to `/api/subscription/create-trial`
+2. **Check database**: Verify subscriptions table exists and can be written to
+3. **Test frontend**: Click "Start Free Trial" button and check for errors
+4. **Verify session**: Ensure user is properly authenticated when making the call
+
+### Success Criteria
+
+- ✅ No more "not a valid HTTP method" errors
+- ✅ Trial creation endpoint returns success response
+- ✅ Database subscription record is created
+- ✅ User subscription status is updated
+- ✅ Frontend receives success response and can proceed
+
+Fix the missing backend endpoint and ensure proper API communication between frontend and backend.

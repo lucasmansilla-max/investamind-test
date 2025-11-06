@@ -1,0 +1,237 @@
+# INvestamind Mobile App - Complete Development Prompt for Replit
+
+## Project Overview
+Create a comprehensive mobile-first web application for **INvestamind**, an investment education platform using the expandable modules UI concept. The app should provide a structured learning journey for users to master stock market and investment concepts.
+
+## Core Features to Implement
+
+### 1. Module Management System
+- **Expandable Module Cards**: Implement the collapsible/expandable module interface
+- **Progress Tracking**: Visual progress indicators for each module and overall journey
+- **Lock/Unlock Logic**: Sequential unlocking of modules based on completion
+- **Lesson State Management**: Track completed, current, and locked lessons
+
+### 2. Learning Content Structure
+Create a comprehensive curriculum with these modules:
+
+#### Module 1: Quick Start Guide (7 lessons)
+- Day 1: Stock Market Basics
+- Day 2: How Trading Works  
+- Day 3: Types of Orders
+- Day 4: Risk Management Basics
+- Day 5: Building Your First Portfolio
+- Day 6: Common Beginner Mistakes
+- Day 7: Your Investment Plan
+
+#### Module 2: Stock Fundamentals (6 lessons)
+- Understanding Company Financials
+- Reading Financial Statements
+- Valuation Methods
+- Dividend Investing
+- Growth vs Value Stocks
+- Sector Analysis
+
+#### Module 3: Technical Analysis (8 lessons)
+- Chart Reading Basics
+- Support and Resistance
+- Trend Analysis
+- Moving Averages
+- Volume Analysis
+- Chart Patterns
+- Technical Indicators
+- Putting It All Together
+
+#### Module 4: Portfolio Management (6 lessons)
+- Asset Allocation
+- Diversification Strategies
+- Rebalancing
+- Tax Considerations
+- Performance Tracking
+- Long-term Planning
+
+#### Module 5: Advanced Strategies (7 lessons)
+- Options Basics
+- ETF Investing
+- International Markets
+- Alternative Investments
+- Market Psychology
+- Economic Indicators
+- Building Wealth Over Time
+
+### 3. User Interface Requirements
+
+#### Mobile-First Design
+- Responsive design optimized for mobile devices
+- Touch-friendly interface with proper touch targets
+- Smooth animations and transitions
+- Clean, modern aesthetic matching the provided concept
+
+#### Navigation & UX
+- **Home Dashboard**: Overview of all modules with progress
+- **Module Detail View**: Expandable lessons within each module
+- **Lesson Content View**: Individual lesson pages with content
+- **Progress Tracking**: Visual indicators throughout the app
+- **Settings/Profile**: User preferences and progress statistics
+
+### 4. Technical Implementation
+
+#### Frontend Framework
+Use **React** with the following structure:
+```
+src/
+├── components/
+│   ├── ModuleCard.js
+│   ├── LessonItem.js
+│   ├── ProgressBar.js
+│   ├── Navigation.js
+│   └── Layout.js
+├── pages/
+│   ├── Dashboard.js
+│   ├── ModuleDetail.js
+│   ├── LessonContent.js
+│   └── Profile.js
+├── data/
+│   ├── modules.js
+│   └── lessons.js
+├── hooks/
+│   └── useProgress.js
+├── styles/
+│   └── global.css
+└── App.js
+```
+
+#### State Management
+- Use React Context API or Redux for global state
+- Implement local storage for progress persistence
+- Track user progress, completion status, and preferences
+
+#### Styling
+- Use CSS Modules or Styled Components
+- Implement the green color scheme (#4CAF50) from the concept
+- Ensure responsive design with CSS Grid/Flexbox
+- Include smooth transitions and micro-animations
+
+### 5. Content Management
+
+#### Lesson Content Structure
+Each lesson should include:
+- **Title and Description**
+- **Estimated Duration**
+- **Learning Objectives**
+- **Main Content** (text, images, interactive elements)
+- **Key Takeaways**
+- **Practice Questions** (optional)
+- **Next Steps**
+
+#### Sample Content Templates
+Create rich, educational content for each lesson including:
+- Explanatory text with examples
+- Interactive calculators (compound interest, portfolio allocation)
+- Charts and graphs (using Chart.js or similar)
+- Glossary terms with definitions
+- Real-world case studies
+
+### 6. Interactive Features
+
+#### Progress System
+- **Module Progress**: Percentage completion for each module
+- **Overall Progress**: Total learning journey completion
+- **Achievements**: Badges for milestones (complete first module, finish 50% of course, etc.)
+- **Streak Tracking**: Daily learning streaks
+
+#### Engagement Features
+- **Lesson Bookmarks**: Save lessons for later review
+- **Notes System**: Allow users to take notes on lessons
+- **Search Functionality**: Find specific topics across all modules
+- **Personalized Dashboard**: Show recommended next steps
+
+### 7. Performance & Accessibility
+
+#### Performance Optimization
+- Lazy loading for lesson content
+- Image optimization
+- Efficient state management
+- Fast loading times on mobile networks
+
+#### Accessibility
+- ARIA labels for screen readers
+- Keyboard navigation support
+- High contrast mode option
+- Font size adjustment options
+
+### 8. Development Guidelines
+
+#### Code Quality
+- Use TypeScript for type safety
+- Implement proper error handling
+- Write clean, documented code
+- Follow React best practices
+
+#### Testing
+- Unit tests for components
+- Integration tests for user flows
+- Mobile responsiveness testing
+- Cross-browser compatibility
+
+#### File Structure Example
+```javascript
+// modules.js - Sample data structure
+export const modules = [
+  {
+    id: 1,
+    title: "Quick Start Guide",
+    subtitle: "7-Day Foundation Course",
+    icon: "🚀",
+    totalLessons: 7,
+    estimatedTime: "1.5 hours",
+    status: "in-progress",
+    lessons: [
+      {
+        id: 1,
+        title: "Day 1: Stock Market Basics",
+        duration: "12 minutes",
+        status: "completed",
+        content: "...",
+        objectives: ["Understand what stocks are", "Learn about stock exchanges"]
+      },
+      // ... more lessons
+    ]
+  },
+  // ... more modules
+];
+```
+
+## Implementation Steps
+
+1. **Setup Project Structure**: Initialize React app with routing
+2. **Create Base Components**: ModuleCard, LessonItem, ProgressBar
+3. **Implement Module System**: Expandable cards with lesson lists
+4. **Add Progress Tracking**: State management for user progress
+5. **Create Lesson Content**: Rich content pages for each lesson
+6. **Implement Navigation**: Smooth transitions between views
+7. **Add Interactive Features**: Calculators, charts, engagement tools
+8. **Optimize for Mobile**: Responsive design and touch interactions
+9. **Test & Polish**: Performance optimization and bug fixes
+10. **Deploy**: Prepare for production deployment
+
+## Success Criteria
+
+The completed app should:
+- ✅ Display all modules in expandable card format
+- ✅ Track user progress accurately
+- ✅ Provide engaging, educational content
+- ✅ Work seamlessly on mobile devices
+- ✅ Maintain state between sessions
+- ✅ Include interactive learning tools
+- ✅ Follow modern UI/UX best practices
+- ✅ Load quickly and perform well
+
+## Additional Considerations
+
+- **Content Updates**: Design system to easily add new modules/lessons
+- **Analytics**: Track user engagement and learning patterns
+- **Offline Support**: Cache content for offline learning
+- **Social Features**: Share progress or achievements (future enhancement)
+- **Gamification**: Points, levels, and rewards system (future enhancement)
+
+This prompt provides a comprehensive foundation for building a professional, engaging investment education mobile app using the expandable modules concept.

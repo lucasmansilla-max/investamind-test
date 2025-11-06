@@ -1,0 +1,264 @@
+Perfect! I can see your existing architecture clearly. You have a well-structured Express + React app with:
+
+- **Backend**: Express with PostgreSQL (Neon), Drizzle ORM, session-based auth
+- **Frontend**: React with Wouter routing, TanStack Query, Tailwind CSS
+- **Database**: Already set up with users, modules, progress, notifications tables
+- **Auth System**: Working signup/signin with bcrypt and session management
+
+Now I can create a comprehensive Replit prompt that adds the community features as seamless integrations. Here's the complete prompt:
+
+---
+
+## Replit Development Prompt: Investamind Community Features
+
+### Overview
+Add community features to existing Investamind app: Twitter-style social feed, badge progression system with referral tracking, and real-time chat. Integrate seamlessly with existing auth system and database.
+
+### Required New Features
+
+#### 1. **Community Social Feed (Twitter-Style)**
+- Social posts with user avatars, usernames, timestamps
+- Post types: market insights, trading signals, questions, discussions
+- Stock ticker integration with real market data
+- Post interactions: likes, comments, reposts, bookmarks
+- Real-time feed updates with WebSocket
+- Tag system (#Earnings, #AAPL, #BullishSignal, etc.)
+- Trading signal posts with structured data (entry, target, stop loss)
+
+#### 2. **Badge System & User Progression**
+- **Badge Levels**: NEWBIE → TRADER → PRO → EXPERT
+- **Progression Criteria**:
+  - NEWBIE: New users (0-30 days)
+  - TRADER: 30+ days + engagement metrics
+  - PRO: Performance tracking OR referral success
+  - EXPERT: Professional credentials + community leadership
+- **Trust Indicators**: Accuracy percentages, streaks, community points
+- **Progress Dashboard**: Visual progress bars, achievement notifications
+
+#### 3. **Referral System with Probationary Period**
+- Unique referral codes per user
+- **3-Phase Validation**:
+  - Signup: "Pending Referral" 
+  - Day 15: If 3+ posts → "Valid Referral"
+  - Day 30: If still active → "Confirmed Referral" (full points)
+- Referral dashboard with tracking and stats
+- Badge progression acceleration through referrals
+
+### Technical Requirements
+
+#### **Database Schema Extensions**
+Add to existing Drizzle schema:
+
+```typescript
+// New tables to add to shared/schema.ts
+export const communityPosts = pgTable('community_posts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  content: text('content').notNull(),
+  postType: varchar('post_type', { length: 50 }).default('general'),
+  stockSymbol: varchar('stock_symbol', { length: 10 }),
+  stockData: json('stock_data'), // price, change, etc.
+  signalData: json('signal_data'), // entry, target, stop loss
+  tags: json('tags').default([]),
+  likesCount: integer('likes_count').default(0),
+  commentsCount: integer('comments_count').default(0),
+  repostsCount: integer('reposts_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+export const postInteractions = pgTable('post_interactions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  postId: integer('post_id').references(() => communityPosts.id).notNull(),
+  interactionType: varchar('interaction_type', { length: 20 }).notNull(), // like, comment, repost, bookmark
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+export const userBadges = pgTable('user_badges', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  badgeType: varchar('badge_type', { length: 50 }).notNull(),
+  earnedAt: timestamp('earned_at').defaultNow(),
+  isActive: boolean('is_active').default(true)
+});
+
+export const userStats = pgTable('user_stats', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  communityPoints: integer('community_points').default(0),
+  totalPosts: integer('total_posts').default(0),
+  totalLikes: integer('total_likes').default(0),
+  predictionAccuracy: decimal('prediction_accuracy', { precision: 5, scale: 2 }).default('0'),
+  currentStreak: integer('current_streak').default(0),
+  helpfulAnswers: integer('helpful_answers').default(0),
+  referralCount: integer('referral_count').default(0),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+export const referrals = pgTable('referrals', {
+  id: serial('id').primaryKey(),
+  referrerUserId: integer('referrer_user_id').references(() => users.id).notNull(),
+  referredUserId: integer('referred_user_id').references(() => users.id).notNull(),
+  referralCode: varchar('referral_code', { length: 50 }).notNull(),
+  status: varchar('status', { length: 20 }).default('pending'), // pending, valid, confirmed, invalid
+  signupDate: timestamp('signup_date').defaultNow(),
+  validationDate: timestamp('validation_date'),
+  confirmationDate: timestamp('confirmation_date'),
+  pointsAwarded: integer('points_awarded').default(0)
+});
+
+// Add to existing users table
+// Add these columns to your existing users table
+export const usersExtensions = {
+  currentBadge: varchar('current_badge', { length: 50 }).default('NEWBIE'),
+  referralCode: varchar('referral_code', { length: 50 }).unique(),
+  referredBy: varchar('referred_by', { length: 50 })
+};
+```
+
+#### **API Routes to Add**
+Add to `server/routes.ts`:
+
+```typescript
+// Community Posts
+app.get("/api/community/feed", async (req, res) => { /* Get paginated feed */ });
+app.post("/api/community/posts", async (req, res) => { /* Create new post */ });
+app.post("/api/community/posts/:id/like", async (req, res) => { /* Like/unlike post */ });
+app.get("/api/community/posts/:id/comments", async (req, res) => { /* Get comments */ });
+
+// Badge System
+app.get("/api/badges/progress", async (req, res) => { /* Get user badge progress */ });
+app.get("/api/badges/leaderboard", async (req, res) => { /* Get community leaderboard */ });
+
+// Referral System
+app.get("/api/referrals/dashboard", async (req, res) => { /* Get referral stats */ });
+app.post("/api/referrals/generate-code", async (req, res) => { /* Generate unique code */ });
+app.get("/api/referrals/validate/:code", async (req, res) => { /* Validate referral code */ });
+
+// Stock Data Integration
+app.get("/api/stocks/quote/:symbol", async (req, res) => { /* Get real stock data */ });
+```
+
+#### **Real-time Features with Socket.io**
+Add WebSocket support:
+
+```typescript
+// server/socket.ts
+import { Server } from 'socket.io';
+import type { Server as HttpServer } from 'http';
+
+export function setupSocketIO(httpServer: HttpServer) {
+  const io = new Server(httpServer, {
+    cors: { origin: "*" }
+  });
+
+  io.on('connection', (socket) => {
+    // Join community room
+    socket.on('join-community', (userId) => {
+      socket.join('community-feed');
+    });
+
+    // New post broadcast
+    socket.on('new-post', (postData) => {
+      io.to('community-feed').emit('post-created', postData);
+    });
+
+    // Real-time interactions
+    socket.on('post-interaction', (data) => {
+      io.to('community-feed').emit('interaction-update', data);
+    });
+  });
+
+  return io;
+}
+```
+
+#### **Frontend Components Structure**
+Create new components in `client/src/components/`:
+
+```
+/community/
+  ├── CommunityFeed.tsx          // Main social feed
+  ├── PostCard.tsx               // Individual post component
+  ├── CreatePost.tsx             // Post creation form
+  ├── TradingSignalPost.tsx      // Special signal post type
+  └── PostInteractions.tsx       // Like, comment, repost buttons
+
+/badges/
+  ├── BadgeProgressDashboard.tsx // Progress tracking
+  ├── BadgeDisplay.tsx           // Badge component
+  └── ProgressBar.tsx            // Visual progress
+
+/referrals/
+  ├── ReferralDashboard.tsx      // Main referral interface
+  ├── ReferralStats.tsx          // Stats cards
+  ├── ReferralList.tsx           // List of referred users
+  └── ReferralCodeShare.tsx      // Code sharing component
+```
+
+#### **New Pages to Add**
+Add to `client/src/pages/`:
+
+```typescript
+// pages/community.tsx - Main community feed
+// pages/referrals.tsx - Referral dashboard  
+// pages/badges.tsx - Badge progression dashboard
+```
+
+#### **Stock API Integration**
+Use Alpha Vantage or Finnhub for real market data:
+
+```typescript
+// server/services/stockService.ts
+export async function getStockQuote(symbol: string) {
+  const response = await fetch(`https://api.finnhub.io/api/v1/quote?symbol=${symbol}&token=${process.env.FINNHUB_API_KEY}`);
+  return response.json();
+}
+```
+
+### Integration Points
+
+#### **Navigation Updates**
+Add community navigation to existing layout:
+- Bottom navigation: Add "Community" tab
+- Badge indicator in header/profile
+- Notification system for community interactions
+
+#### **User Session Enhancement**
+Extend existing session to include:
+- Current badge level
+- Community stats
+- Referral tracking
+
+#### **Database Migration**
+Create migration script for new tables while preserving existing data.
+
+### Key Implementation Notes
+
+1. **Preserve Existing Auth**: Use existing session system and user management
+2. **Responsive Design**: Match existing mobile-first approach with max-width 375px
+3. **Real-time Updates**: Implement WebSocket for live community interactions
+4. **Performance**: Paginated feeds, optimistic UI updates
+5. **Data Validation**: Use Zod schemas consistent with existing patterns
+6. **Error Handling**: Follow existing error handling patterns
+
+### Environment Variables to Add
+```
+FINNHUB_API_KEY=your_api_key
+ALPHA_VANTAGE_API_KEY=your_api_key  
+```
+
+### Success Criteria
+- ✅ Community feed with real-time posts and interactions
+- ✅ Badge progression system with visual feedback
+- ✅ Referral system with 3-phase validation
+- ✅ Stock ticker integration with live data
+- ✅ Mobile-responsive design matching existing UI
+- ✅ Seamless integration with existing auth and routing
+
+Build this as modular components that integrate cleanly with the existing codebase. Focus on creating a high-quality, production-ready implementation that feels native to the existing application architecture.
+
+---
+
+This prompt gives you everything needed to build the community features while perfectly integrating with your existing system! Would you like me to adjust anything before you use it?

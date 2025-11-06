@@ -1,0 +1,116 @@
+/// GOAL:
+/// Add persistent community posts to our backend so the mobile app (Vibecode)
+/// can create posts and retrieve them later. We need two endpoints:
+///   GET /posts
+///   POST /posts
+///
+/// REQUIREMENTS:
+/// - Use Express (or the existing server instance) to add these routes.
+/// - Store posts in a local JSON file on disk (e.g. posts.db.json) so data
+///   persists across requests and app restarts. If the file doesn't exist yet,
+///   create it with [] (empty array).
+/// - Each post must get a unique id (string). Use something like Date.now() + random,
+///   or uuid if we already have uuid in the project.
+/// - Return all posts in reverse chronological order (newest first).
+///
+/// POST BODY EXPECTED FROM THE APP:
+/// We'll receive different shapes depending on post type. You must accept all fields,
+/// keep what exists, and ignore what doesn't. The app may send any of these:
+///
+/// Common:
+///   type: string
+///   content: string
+///
+/// trading_signal:
+///   ticker: string
+///   signalType: string  // "Buy" | "Sell" | "Hold"
+///   entryPrice: string
+///   targetPrice: string
+///   stopLoss: string
+///   timeFrame: string
+///
+/// price_prediction:
+///   ticker: string
+///   predictedPrice: string
+///   timeFrame: string
+///   confidenceLevel: string
+///
+/// market_analysis:
+///   ticker?: string
+///   analysisType?: string  // "Fundamental" | "Technical" | "Sentiment"
+///
+/// win:
+///   resultType: string     // "profit" | "loss"
+///   valueKind: string      // "dollar" | "percent"
+///   resultValue: string    // numeric part like "2000" or "12"
+///
+/// (We may also send other types like "question", "market_news", etc. Those just have content.)
+///
+/// FIELDS WE MUST ADD ON THE SERVER:
+///   id: string
+///   createdAt: ISO timestamp string
+///   author: { name: string; handle: string; avatarInitials: string }
+///
+/// For now, we don't have auth, so just hardcode:
+///   author.name = "You"
+///   author.handle = "@you"
+///   author.avatarInitials = "U"
+///
+/// VALIDATION:
+/// - If no "type" or no "content", respond 400.
+/// - For type === "trading_signal": require ticker, signalType, entryPrice
+/// - For type === "price_prediction": require ticker, predictedPrice, timeFrame, confidenceLevel
+/// - For type === "win": require resultType, valueKind, resultValue
+/// - For all others: just require content
+///
+/// IMPLEMENTATION DETAILS:
+/// 1. Create a helper module postsStore.js (or similar) with functions:
+///      loadPosts(): returns array of posts from posts.db.json ([] if missing)
+///      savePosts(postsArray): writes to posts.db.json
+///
+/// 2. Add route: GET /posts
+///      - Load posts from disk
+///      - Sort by createdAt descending
+///      - Return JSON { posts: [...] }
+///
+/// 3. Add route: POST /posts
+///      - Read req.body
+///      - Validate required fields based on type (see above)
+///      - Construct newPost = {
+///           id,
+///           createdAt: new Date().toISOString(),
+///           author: { name: "You", handle: "@you", avatarInitials: "U" },
+///           type: body.type,
+///           content: body.content || "",
+///           // Copy all optional fields transparently:
+///           ticker: body.ticker,
+///           signalType: body.signalType,
+///           entryPrice: body.entryPrice,
+///           targetPrice: body.targetPrice,
+///           stopLoss: body.stopLoss,
+///           timeFrame: body.timeFrame,
+///           predictedPrice: body.predictedPrice,
+///           confidenceLevel: body.confidenceLevel,
+///           analysisType: body.analysisType,
+///           resultType: body.resultType,
+///           valueKind: body.valueKind,
+///           resultValue: body.resultValue,
+///         }
+///      - Load posts array, unshift newPost to the front, savePosts().
+///      - Return 201 with { post: newPost }
+///
+/// 4. Make sure CORS is enabled (if not already) so the mobile app can hit this from iOS.
+///
+/// 5. At the end, show me the final code for:
+///    - postsStore.js (or equivalent)
+///    - the updated server file where /posts is registered
+///
+/// IMPORTANT:
+/// Our frontend (Vibecode) will call this backend at:
+///   https://c46af989-6334-4329-9c38-9ac65ce21491-00-22nx70vl5ylw3.kirk.replit.dev
+///
+/// So the full URLs from the app will be:
+///   GET  https://.../posts
+///   POST https://.../posts
+///
+/// Please implement exactly those two endpoints now.

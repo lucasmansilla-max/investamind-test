@@ -1,0 +1,49 @@
+Create a mobile-first web app called "Investamind" - a stock trading education platform. Keep it simple for MVP.
+
+REQUIREMENTS:
+- Mobile-only responsive design (iOS/Android friendly)
+- Clean, modern UI with green accent colors
+- Simple user authentication/registration
+- Progress tracking system
+
+ONBOARDING FLOW:
+1. Welcome screen with app logo
+2. Experience level selection (3 options):
+   - Principiante: "Nuevo en inversiones, listo para aprender lo básico"
+   - Intermedio: "Algo de experiencia, quiero mejorar estrategias" 
+   - Avanzado: "Inversor experimentado buscando insights avanzados"
+3. Investment style preference (for data only):
+   - Day/Swing Trading
+   - Long-term Investing
+   - Both
+4. Redirect to appropriate dashboard
+
+LEARNING PATHWAYS:
+
+PRINCIPIANTE:
+- Quick Start: 7-Day Foundation (Stock Market Basics, How Trading Works, Types of Orders, Reading Charts, Risk Management, Choosing Broker, First Strategy)
+- Core Modules: Stock Fundamentals, Financial Terms, Company Analysis Basics, Risk Management 101, Market Orders, Common Mistakes
+
+INTERMEDIO: 
+- Quick Start: 3-Day Strategy Enhancement (Technical Analysis, Market Sectors, Portfolio Optimization)
+- Core Modules: Technical Analysis, Fundamental Analysis, Options Basics, Market Psychology, Tax Considerations, Advanced Risk Management
+
+AVANZADO:
+- Quick Start: Advanced Strategies track
+- Core Modules: Complex Strategies, Algorithmic Concepts, Market Psychology, Advanced Patterns, Economic Analysis, System Building
+
+DASHBOARD FEATURES:
+- Progress tracker with visual progress bar
+- Current lesson/next recommended lesson
+- Learning streak counter
+- Bookmarks for saved content
+- Basic settings (profile, preferences)
+
+UI REQUIREMENTS:
+- Card-based layout for lessons
+- Simple navigation between modules
+- Progress indicators
+- Clean typography, mobile-optimized
+- Green color scheme matching the image provided
+
+Keep it minimal - no demo trading, no real-time data, no push notifications. Focus on educational content delivery and progress tracking only.

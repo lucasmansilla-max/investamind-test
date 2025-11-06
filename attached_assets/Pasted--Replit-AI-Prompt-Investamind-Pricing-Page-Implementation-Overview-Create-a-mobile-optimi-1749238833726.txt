@@ -1,0 +1,320 @@
+## Replit AI Prompt: Investamind Pricing Page Implementation
+
+### Overview
+Create a mobile-optimized pricing page using Concept 2 enhanced design with toggle functionality, dynamic savings display, and seamless integration with existing Investamind subscription system.
+
+### Required Implementation
+
+#### 1. **Pricing Page Component**
+Create `client/src/pages/pricing.tsx` with enhanced toggle design:
+
+```typescript
+// Key features to implement:
+- Monthly/Yearly toggle with animated slider
+- Dynamic pricing display ($64.99 monthly, $599.99 yearly)
+- Animated "Save 23%" pill that pulses
+- Interactive feature grid with hover effects
+- Enhanced CTA button with shine animation
+- Value proposition section
+- Trial banner with no credit card messaging
+```
+
+#### 2. **Navigation Integration**
+Add pricing page routes and navigation triggers:
+
+```typescript
+// Add to App.tsx routes (authenticated users section):
+<Route path="/pricing" component={Pricing} />
+<Route path="/upgrade" component={Pricing} />
+
+// Navigation triggers from:
+- Premium content gates → "Upgrade to continue" 
+- Settings menu → "Upgrade to Premium"
+- Community limitations → "Get unlimited access"
+- Trial expiry notifications → Direct to pricing
+```
+
+#### 3. **Content Gating Integration**
+Implement upgrade prompts throughout the app:
+
+```typescript
+// Create upgrade prompt components:
+- PremiumGate.tsx → Blocks premium content
+- TrialBanner.tsx → Shows trial countdown
+- UpgradePrompt.tsx → Conversion prompts in community
+```
+
+### Component Structure
+
+Create these files in `client/src/components/pricing/`:
+
+```
+/pricing/
+  ├── PricingPage.tsx           // Main pricing page
+  ├── PlanToggle.tsx           // Monthly/Yearly toggle
+  ├── PricingCard.tsx          // Single plan display card
+  ├── FeatureGrid.tsx          // Features showcase
+  ├── PaymentButton.tsx        // Enhanced CTA button
+  └── SavingsPill.tsx          // Animated savings indicator
+
+/upgrade-prompts/
+  ├── PremiumGate.tsx          // Content blocker
+  ├── TrialBanner.tsx          // Trial countdown
+  ├── UpgradePrompt.tsx        // Community upgrade prompt
+  └── UpgradeModal.tsx         // Full-screen upgrade modal
+```
+
+### Styling Requirements
+
+Use Tailwind CSS classes matching existing app design:
+
+```css
+/* Key design elements to implement: */
+
+/* Toggle Animation */
+- Smooth slider transition (0.3s ease)
+- Active state color changes
+- Gradient backgrounds for premium feel
+
+/* Savings Pill */
+- Pulsing animation (2s infinite)
+- Gradient background (green to light green)
+- Box shadow for depth
+
+/* Pricing Card */
+- Gradient border and background
+- Subtle shadow effects
+- Hover animations on feature cards
+
+/* Enhanced Button */
+- Dual-line text (main CTA + subtext)
+- Sliding shine effect on hover
+- Gradient background matching brand colors
+
+/* Mobile Optimization */
+- Max width 375px
+- Compact padding and spacing
+- Touch-friendly button sizes (min 44px height)
+```
+
+### Integration with Existing Subscription System
+
+Connect pricing page to existing backend:
+
+```typescript
+// API integration points:
+- GET /api/subscription/status → Check current plan
+- POST /api/subscription/create-trial → Start free trial
+- POST /api/subscription/create-payment-intent → Process upgrade
+
+// State management:
+- Use existing useAuth hook for user session
+- Integrate with TanStack Query for API calls
+- Handle loading states and error handling
+```
+
+### Dynamic Content Logic
+
+Implement toggle functionality:
+
+```typescript
+// Toggle behavior:
+const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+// Dynamic pricing:
+const pricing = {
+  monthly: { price: '$64.99', period: 'per month', savings: null },
+  yearly: { price: '$599.99', period: 'per year', savings: 'Save $179.89 yearly!' }
+};
+
+// Savings calculation:
+const yearlyDiscount = '23%'; // (64.99 * 12 - 599.99) / (64.99 * 12) * 100
+```
+
+### Payment Flow Integration
+
+Connect to existing Stripe integration:
+
+```typescript
+// Payment button click handler:
+const handleUpgrade = async (planType: 'monthly' | 'yearly') => {
+  try {
+    // Start trial if new user
+    if (!hasTrialStarted) {
+      await startFreeTrial();
+    } else {
+      // Redirect to payment flow
+      await createPaymentIntent(planType);
+    }
+  } catch (error) {
+    // Handle errors with toast notifications
+  }
+};
+```
+
+### Content Gating Implementation
+
+Add upgrade prompts throughout existing pages:
+
+```typescript
+// Wrap learning modules:
+<PremiumGate requiredPlan="premium" contentType="advanced_modules">
+  <LearningModule />
+</PremiumGate>
+
+// Add to community posts:
+{!isPremium && postCount >= 5 && (
+  <UpgradePrompt 
+    message="Upgrade for unlimited posts" 
+    ctaText="Go Premium" 
+  />
+)}
+
+// Add trial banner to header:
+{isOnTrial && (
+  <TrialBanner daysRemaining={trialDaysLeft} />
+)}
+```
+
+### Responsive Design Requirements
+
+Ensure mobile-first approach:
+
+```typescript
+// Mobile optimization:
+- Container max-width: 375px
+- Touch targets: minimum 44px
+- Readable font sizes: 14px minimum
+- Adequate spacing for thumb navigation
+- Smooth animations (60fps)
+- Fast loading (< 1s initial render)
+```
+
+### Feature Descriptions
+
+Implement feature grid with enhanced descriptions:
+
+```typescript
+const features = [
+  {
+    icon: '📚',
+    title: 'All Modules',
+    description: 'Complete library',
+    detail: 'Access every learning module and lesson'
+  },
+  {
+    icon: '📊',
+    title: 'Trading Signals',
+    description: 'Expert calls',
+    detail: 'Real-time trading signals from experts'
+  },
+  {
+    icon: '💬',
+    title: 'Community',
+    description: 'Unlimited access',
+    detail: 'Full community participation'
+  },
+  {
+    icon: '🎯',
+    title: 'Expert Tips',
+    description: 'Live insights',
+    detail: 'Direct access to trading experts'
+  }
+];
+```
+
+### Error Handling & Loading States
+
+Implement proper UX patterns:
+
+```typescript
+// Loading states:
+- Skeleton loading for pricing data
+- Button loading spinners during payment
+- Graceful error messages with retry options
+
+// Error scenarios:
+- Failed payment processing
+- Network connectivity issues
+- Invalid subscription states
+- Trial expiry edge cases
+```
+
+### Analytics Integration
+
+Track user interactions:
+
+```typescript
+// Track events:
+- Pricing page views
+- Toggle interactions (monthly vs yearly)
+- Feature card hovers
+- CTA button clicks
+- Upgrade completion
+- Trial starts
+```
+
+### Accessibility Requirements
+
+Ensure WCAG compliance:
+
+```typescript
+// Accessibility features:
+- Proper ARIA labels for interactive elements
+- Keyboard navigation support
+- Screen reader compatible
+- High contrast color ratios
+- Focus indicators
+- Semantic HTML structure
+```
+
+### Testing Requirements
+
+Implement key test scenarios:
+
+```typescript
+// Test cases:
+- Toggle functionality works correctly
+- Pricing displays update properly
+- Payment integration flows work
+- Content gating blocks/allows correctly
+- Trial functionality operates as expected
+- Mobile responsiveness across devices
+```
+
+### Integration Points
+
+Connect with existing app architecture:
+
+```typescript
+// File locations for integration:
+- Add route to client/src/App.tsx
+- Import pricing components in existing pages
+- Update navigation components
+- Integrate with existing auth/session management
+- Use existing error handling patterns
+- Follow existing code organization standards
+```
+
+### Success Criteria
+
+**Visual Requirements:**
+- ✅ Matches enhanced Concept 2 design exactly
+- ✅ Smooth animations and transitions
+- ✅ Mobile-optimized layout and interactions
+- ✅ Professional gradient and shadow effects
+
+**Functional Requirements:**
+- ✅ Toggle switches between monthly/yearly correctly
+- ✅ Savings display updates dynamically
+- ✅ Payment integration works seamlessly
+- ✅ Content gating blocks free users appropriately
+- ✅ Trial functionality operates correctly
+
+**Technical Requirements:**
+- ✅ Integrates with existing auth system
+- ✅ Uses existing API endpoints
+- ✅ Follows existing code patterns
+- ✅ Maintains app performance standards
+
+Build this as a production-ready pricing system that seamlessly integrates with your existing Investamind architecture while providing an engaging, conversion-optimized user experience.

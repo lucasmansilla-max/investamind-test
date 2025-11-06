@@ -1,0 +1,238 @@
+# Investamind Mobile Investment Learning App - Complete Development Prompt
+
+## Project Overview
+Create a comprehensive mobile-first investment learning application called "Investamind" that teaches users about investing through structured modules, gamification, and real-time market integration. The app must be fully bilingual (English/Spanish) with language selection persisting throughout the entire user experience.
+
+## Core Requirements
+
+### 1. Language Support (CRITICAL)
+- **Language Selection Modal**: On first app load, show a modal asking users to select their preferred language (English/Spanish)
+- **Complete Localization**: ALL text, buttons, labels, notifications, content, and UI elements must be available in both languages
+- **Language Persistence**: User's language choice must persist across sessions using localStorage
+- **Dynamic Language Switching**: Include language toggle in settings/profile area
+- **Spanish Translation Quality**: Ensure proper financial terminology and natural Spanish phrasing
+
+### 2. Technology Stack
+- **Frontend**: React with modern hooks (useState, useEffect, useContext)
+- **Styling**: Tailwind CSS with mobile-first responsive design
+- **Icons**: Lucide React icon library
+- **State Management**: React Context for global state (language, user progress, etc.)
+- **Data Persistence**: localStorage for user preferences and progress
+- **API Integration**: Fetch real market data (use free tier APIs like Alpha Vantage or Yahoo Finance)
+
+### 3. App Architecture & Navigation
+```
+Main App Structure:
+├── Language Selection Modal (first load only)
+├── Dashboard (Concept 2 design)
+├── Learning Modules
+├── Progress Tracking
+├── Market News
+├── User Profile/Settings
+└── Gamification System
+```
+
+## Detailed Feature Specifications
+
+### Dashboard (Based on Concept 2)
+- **Header**: Logo, notification bell, user profile icon
+- **Progress Section**: 
+  - Learning journey with streak counter badge
+  - Compact stats grid (Modules completed, Percentage, Hours learned)
+  - Animated progress bar
+- **Daily Quote**: Rotating investment wisdom with proper attribution
+- **Quick Action Card Grid** (2x2):
+  - Continue Learning (next lesson)
+  - Progress Tracker
+  - Market News
+  - Personalized Recommendations
+- **Market Highlights**: Latest news with icons and timestamps
+
+### Learning Module System
+Create a structured curriculum with these modules:
+1. **Investment Basics** (Conceptos Básicos de Inversión)
+2. **Stock Market Fundamentals** (Fundamentos del Mercado de Valores)
+3. **Financial Statement Analysis** (Análisis de Estados Financieros)
+4. **Risk Management** (Gestión de Riesgos)
+5. **Portfolio Diversification** (Diversificación de Cartera)
+6. **Technical Analysis** (Análisis Técnico)
+7. **Market Psychology** (Psicología del Mercado)
+8. **Advanced Strategies** (Estrategias Avanzadas)
+
+**Module Structure**:
+- Video/text content
+- Interactive quizzes
+- Progress tracking
+- Estimated completion time
+- Difficulty level
+- Prerequisites
+
+### Gamification Features
+- **Streak Counter**: Daily learning streaks with fire emoji
+- **Achievement Badges**: For completing modules, maintaining streaks, etc.
+- **Progress Levels**: Beginner → Intermediate → Advanced → Expert
+- **Points System**: Earn points for lessons, quizzes, daily logins
+- **Leaderboard**: Optional social comparison
+- **Certificates**: Downloadable completion certificates
+
+### Market Integration
+- **Real-time Data**: Stock prices, market indices (S&P 500, NASDAQ, etc.)
+- **News Feed**: Curated financial news with summaries
+- **Market Sentiment**: Daily market mood indicator
+- **Educational Context**: Connect news to learning modules
+
+## Technical Implementation Details
+
+### Language Context Setup
+```javascript
+// Create LanguageContext with translations object
+const translations = {
+  en: {
+    dashboard: {
+      title: "Dashboard",
+      progress: "Your Learning Progress",
+      completed: "Completed",
+      totalModules: "Total Modules",
+      dayStreak: "Day Streak",
+      // ... all English translations
+    }
+  },
+  es: {
+    dashboard: {
+      title: "Panel Principal",
+      progress: "Tu Progreso de Aprendizaje",
+      completed: "Completado",
+      totalModules: "Módulos Totales",
+      dayStreak: "Días Seguidos",
+      // ... all Spanish translations
+    }
+  }
+}
+```
+
+### Component Structure
+```
+src/
+├── components/
+│   ├── Dashboard/
+│   ├── Learning/
+│   ├── Market/
+│   ├── Profile/
+│   └── Common/
+├── contexts/
+│   ├── LanguageContext.js
+│   ├── UserContext.js
+│   └── ProgressContext.js
+├── hooks/
+├── utils/
+└── data/
+    └── translations.js
+```
+
+### API Integration Requirements
+- Integrate with free financial API (Alpha Vantage, Yahoo Finance, or similar)
+- Handle API rate limits gracefully
+- Cache data appropriately
+- Fallback content when API is unavailable
+- Real-time market data display
+
+### Progressive Web App Features
+- Responsive design (mobile-first)
+- Offline functionality where possible
+- Push notifications for learning reminders
+- Fast loading with code splitting
+- App-like feel with proper navigation
+
+## Content Requirements
+
+### Sample Learning Content (Both Languages)
+- Create at least 2-3 complete lessons per module
+- Include interactive elements (quizzes, drag-drop, etc.)
+- Provide practical examples and case studies
+- Real-world application scenarios
+- Financial calculators and tools
+
+### Market News Integration
+- Fetch and display recent financial news
+- Categorize by sectors (Tech, Energy, Finance, etc.)
+- Provide beginner-friendly summaries
+- Link news to relevant learning modules
+
+### Gamification Content
+- Achievement definitions and requirements
+- Daily motivational quotes (investment-focused)
+- Progress celebration messages
+- Streak milestone rewards
+
+## UI/UX Specifications
+
+### Design System (Based on Concept 2)
+- **Colors**: 
+  - Primary: Green gradient (#4CAF50 to #66BB6A)
+  - Secondary: Teal gradient (#4ECDC4 to #44A08D)
+  - Accent: Orange/Red gradients for CTAs
+- **Typography**: System fonts, multiple weights
+- **Spacing**: Consistent 4px grid system
+- **Animations**: Subtle hover effects, progress animations
+- **Cards**: Rounded corners (12-16px), subtle shadows
+
+### Mobile Optimization
+- Touch-friendly button sizes (minimum 44px)
+- Swipe gestures for navigation
+- Pull-to-refresh functionality
+- Optimized for thumb navigation
+- Fast loading and smooth animations
+
+## Testing & Quality Assurance
+
+### Language Testing Checklist
+- [ ] All UI text appears in selected language
+- [ ] Financial terminology is accurate in Spanish
+- [ ] Language toggle works in all sections
+- [ ] Language preference persists across sessions
+- [ ] No English text appears when Spanish is selected
+- [ ] Proper text wrapping for longer Spanish translations
+
+### Functionality Testing
+- [ ] All modules load and progress correctly
+- [ ] API integration works reliably
+- [ ] Gamification features update properly
+- [ ] Responsive design works on various screen sizes
+- [ ] Performance is acceptable on mobile devices
+
+## Deployment & Setup Instructions
+
+### Environment Variables
+```
+REACT_APP_ALPHA_VANTAGE_API_KEY=your_api_key
+REACT_APP_NEWS_API_KEY=your_news_api_key
+```
+
+### Installation Steps
+1. Set up React app with required dependencies
+2. Configure Tailwind CSS
+3. Set up API endpoints
+4. Implement language system first
+5. Build core components
+6. Add content and integrate APIs
+7. Test thoroughly in both languages
+8. Deploy to production
+
+## Success Criteria
+- ✅ Complete bilingual support with no untranslated text
+- ✅ Smooth, app-like mobile experience
+- ✅ Working gamification system with progress tracking
+- ✅ Real market data integration
+- ✅ All 8 learning modules with interactive content
+- ✅ Language preference persistence
+- ✅ Professional, polished UI matching Concept 2 design
+- ✅ Fast loading and responsive performance
+
+## Additional Notes
+- Prioritize mobile experience over desktop
+- Focus on educational value and user engagement
+- Ensure accessibility standards are met
+- Plan for future features (social sharing, advanced analytics)
+- Consider implementing A/B testing for UI improvements
+
+This project should result in a production-ready investment education app that rivals commercial offerings while maintaining a focus on accessibility and bilingual support.

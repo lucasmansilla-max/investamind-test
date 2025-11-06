@@ -1,0 +1,180 @@
+## Replit AI Prompt: Fix Infinite Scrolling Content Duplication and Language Modal Text Visibility
+
+### CRITICAL: DO NOT IMPLEMENT ANY OTHER FEATURES. ONLY FIX THESE SPECIFIC ISSUES.
+
+### Problem Description
+Two critical UI bugs need immediate fixing:
+
+1. **Content Duplication Bug**: All pages have infinite scrolling that duplicates content. Users scroll down and see the same page content repeated or content from other pages mixed in.
+
+2. **Language Modal Text Invisible**: When hovering over language options in the language selection popup, both text color and background become white, making text unreadable.
+
+### Required Fixes ONLY
+
+#### 1. **Fix Content Duplication - Add Fixed Heights**
+Add fixed container heights to prevent infinite scrolling and content duplication:
+
+```css
+/* Add these styles to prevent content duplication: */
+
+.app-container {
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fix each page container */
+.page-wrapper {
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Prevent content from repeating */
+.content-container {
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+```
+
+#### 2. **Fix Component Containers**
+Wrap each page component with proper height constraints:
+
+```typescript
+// In EVERY page component, wrap content like this:
+
+export default function SomePage() {
+  return (
+    <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+      {/* Existing page content here */}
+    </div>
+  );
+}
+
+// Apply this to:
+// - welcome.tsx
+// - signup.tsx  
+// - home.tsx
+// - lesson-content.tsx
+// - pricing.tsx
+// - ALL page components
+```
+
+#### 3. **Fix Language Modal Text Visibility**
+In the language selection modal component, fix the hover state colors:
+
+```css
+/* Fix language modal text visibility: */
+
+.language-option {
+  color: #2c3e50 !important; /* Dark text */
+  background: transparent !important;
+}
+
+.language-option:hover {
+  color: #2c3e50 !important; /* Keep dark text on hover */
+  background: #f8f9fa !important; /* Light background on hover */
+}
+
+/* Ensure text is always visible */
+.language-modal .option-text {
+  color: #2c3e50 !important;
+}
+
+.language-modal .option-text:hover {
+  color: #2c3e50 !important;
+  background: #e9ecef !important;
+}
+```
+
+#### 4. **Fix App.tsx Container**
+In the main App.tsx, add height constraints:
+
+```typescript
+// In App.tsx, modify the main container:
+
+return (
+  <div className="max-w-sm mx-auto bg-white min-h-screen relative app-container" 
+       style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden' }}>
+    <Switch>
+      {/* existing routes */}
+    </Switch>
+  </div>
+);
+```
+
+#### 5. **Remove Any Infinite Scroll Logic**
+Find and remove any infinite scroll or content duplication code:
+
+```typescript
+// Remove any code that looks like this:
+// - Infinite scroll implementations
+// - Content appending loops
+// - Duplicate content rendering
+// - Multiple component renders in single pages
+
+// Search for and remove:
+// - useInfiniteQuery
+// - scrollHeight calculations
+// - content.push() or content.concat()
+// - Multiple return statements in components
+```
+
+#### 6. **Fix CSS Body Styles**
+Add these global styles to prevent page overflow:
+
+```css
+/* Add to global CSS: */
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Prevent content duplication */
+* {
+  box-sizing: border-box;
+}
+```
+
+### Files to Modify (DO NOT ADD ANY NEW FEATURES)
+
+1. **Global CSS file** - Add height constraints and fix language modal styles
+2. **client/src/App.tsx** - Add container height limits
+3. **ALL page components** - Wrap content in height-constrained containers
+4. **Language selection modal component** - Fix hover text colors
+
+### What NOT to Do
+
+- ❌ Do not add new features
+- ❌ Do not modify routing logic beyond height fixes
+- ❌ Do not add new components
+- ❌ Do not change authentication flow
+- ❌ Do not modify subscription system
+- ❌ Do not add new pages or functionality
+
+### Testing Requirements
+
+After fixes, verify ONLY these work:
+- ✅ Pages do not duplicate content when scrolling
+- ✅ Each page has fixed height and proper scrolling
+- ✅ Language modal text is readable on hover
+- ✅ No infinite scrolling or content repetition
+
+### Success Criteria
+
+1. **Content Duplication Fixed**: Users can scroll through page content normally without seeing duplicated sections
+2. **Language Modal Fixed**: All text in language selection popup is readable with proper contrast
+3. **Page Heights Fixed**: All pages have proper containers and don't overflow
+
+### IMPORTANT: ONLY FIX THESE ISSUES
+
+Do not implement any other features, improvements, or modifications. Focus exclusively on fixing the content duplication and language modal text visibility problems.

@@ -1,0 +1,213 @@
+## Replit AI Prompt: Fix Duplicate Language Selection Popup After Login
+
+### Problem Description
+After user login, the language selection popup appears twice in sequence: login → choose language → login → choose language. This creates a poor user experience with duplicate language selection modals.
+
+### Root Cause Analysis
+This is likely caused by:
+1. Language selection logic triggering multiple times
+2. Authentication state changes causing re-renders
+3. Multiple language context providers or conflicting language detection
+4. Onboarding flow logic conflicts
+
+### Required Fixes
+
+#### 1. **Check Language Selection Modal Logic**
+In `client/src/components/language-selection-modal.tsx`, fix the display logic:
+
+```typescript
+// Find and fix the modal display condition:
+
+// Current problematic logic might be:
+const shouldShow = !user?.selectedLanguage || isFirstLogin;
+
+// Fix to prevent duplicate shows:
+const [hasShownLanguageModal, setHasShownLanguageModal] = useState(false);
+
+const shouldShow = !user?.selectedLanguage && 
+                   !hasShownLanguageModal && 
+                   isAuthenticated &&
+                   !isLoading;
+
+// When modal is closed, mark as shown:
+const handleLanguageSelect = (language: string) => {
+  setHasShownLanguageModal(true);
+  // ... existing language selection logic
+};
+```
+
+#### 2. **Fix Authentication Flow Logic**
+In `client/src/App.tsx`, ensure language modal only shows once per session:
+
+```typescript
+// Add session storage to track if language was already selected:
+
+const [languageModalShown, setLanguageModalShown] = useState(() => {
+  return sessionStorage.getItem('languageModalShown') === 'true';
+});
+
+// Only show language modal if:
+// - User is authenticated
+// - No language selected
+// - Modal hasn't been shown this session
+const shouldShowLanguageModal = isAuthenticated && 
+                                !user?.selectedLanguage && 
+                                !languageModalShown;
+
+// When language is selected:
+const handleLanguageModalClose = () => {
+  setLanguageModalShown(true);
+  sessionStorage.setItem('languageModalShown', 'true');
+};
+```
+
+#### 3. **Check for Duplicate Language Context Providers**
+Ensure `LanguageProvider` is only wrapping the app once:
+
+```typescript
+// In App.tsx, verify this structure (only one LanguageProvider):
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <LanguageProvider> {/* Only one LanguageProvider here */}
+          <LanguageSelectionModal />
+          <Toaster />
+          <AppContent />
+        </LanguageProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+// Remove any other LanguageProvider wrappers in child components
+```
+
+#### 4. **Fix Language Context Logic**
+In `client/src/contexts/language-context.tsx`, prevent multiple modal triggers:
+
+```typescript
+// Add modal control to the language context:
+
+interface LanguageContextType {
+  // ... existing properties
+  hasShownLanguageModal: boolean;
+  setHasShownLanguageModal: (shown: boolean) => void;
+}
+
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [hasShownLanguageModal, setHasShownLanguageModal] = useState(false);
+  
+  // Reset modal shown status only on app reload, not on auth changes
+  useEffect(() => {
+    const modalShown = sessionStorage.getItem('languageModalShown');
+    if (modalShown === 'true') {
+      setHasShownLanguageModal(true);
+    }
+  }, []); // Empty dependency array - only run once
+  
+  // Don't reset on user changes
+  // Remove any useEffect that resets hasShownLanguageModal when user changes
+}
+```
+
+#### 5. **Fix Authentication State Handling**
+In `client/src/hooks/use-auth.ts`, ensure stable authentication state:
+
+```typescript
+// Prevent unnecessary re-authentication cycles:
+
+export function useAuth() {
+  // ... existing code
+  
+  // Add stable loading state to prevent multiple auth checks
+  const [hasCompletedInitialAuth, setHasCompletedInitialAuth] = useState(false);
+  
+  useEffect(() => {
+    if (data && !hasCompletedInitialAuth) {
+      setHasCompletedInitialAuth(true);
+    }
+  }, [data, hasCompletedInitialAuth]);
+  
+  return {
+    // ... existing returns
+    isInitialAuthComplete: hasCompletedInitialAuth
+  };
+}
+```
+
+#### 6. **Update Modal Component Conditional Rendering**
+In `client/src/components/language-selection-modal.tsx`:
+
+```typescript
+// Fix modal display logic:
+
+export default function LanguageSelectionModal() {
+  const { user } = useAuth();
+  const { hasShownLanguageModal, setHasShownLanguageModal } = useLanguage();
+  
+  // Only show if user exists, no language selected, and not shown yet
+  const shouldShow = user && 
+                     !user.selectedLanguage && 
+                     !hasShownLanguageModal;
+  
+  const handleClose = () => {
+    setHasShownLanguageModal(true);
+    sessionStorage.setItem('languageModalShown', 'true');
+  };
+  
+  if (!shouldShow) return null;
+  
+  // ... rest of modal component
+}
+```
+
+#### 7. **Clear Session Storage on Logout**
+In your logout handler, clear the language modal flag:
+
+```typescript
+// In logout function:
+const handleLogout = async () => {
+  // ... existing logout logic
+  
+  // Clear language modal flag for next login
+  sessionStorage.removeItem('languageModalShown');
+  
+  // ... rest of logout
+};
+```
+
+### Files to Check and Modify
+
+1. **`client/src/App.tsx`** - Check for duplicate LanguageProvider wrappers
+2. **`client/src/components/language-selection-modal.tsx`** - Fix modal display logic
+3. **`client/src/contexts/language-context.tsx`** - Add modal control state
+4. **`client/src/hooks/use-auth.ts`** - Ensure stable auth state
+5. **Authentication routes** - Clear session storage on logout
+
+### Debug Steps
+
+1. **Check browser console** for any language-related re-renders or errors
+2. **Inspect React DevTools** to see if LanguageProvider appears multiple times
+3. **Check sessionStorage** in browser dev tools for 'languageModalShown' key
+4. **Add console.logs** to track when language modal logic triggers
+
+### Testing Checklist
+
+After implementing fixes:
+- ✅ Login → Language modal appears once
+- ✅ Select language → Modal closes and doesn't reappear
+- ✅ No duplicate modals during authentication flow
+- ✅ Language selection persists after page refresh
+- ✅ Modal reappears for new users without selected language
+- ✅ Logout clears modal flag for next login
+
+### Success Criteria
+
+- Language selection modal appears exactly once per login session
+- No duplicate authentication flows
+- Smooth user experience from login to main app
+- Language preference is properly saved and respected
+
+Fix the duplicate language modal issue by implementing proper session tracking and preventing multiple modal triggers during the authentication flow.

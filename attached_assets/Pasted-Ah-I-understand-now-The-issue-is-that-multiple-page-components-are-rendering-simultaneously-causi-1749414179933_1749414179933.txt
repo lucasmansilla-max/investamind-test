@@ -1,0 +1,270 @@
+Ah, I understand now! The issue is that multiple page components are rendering simultaneously, causing pages to appear stacked on top of each other. Here's the correct Replit AI prompt:
+
+## Replit AI Prompt: Fix Multiple Pages Rendering Simultaneously
+
+### Problem Description
+Pages are rendering multiple components at once, causing content to stack vertically. For example:
+- Login page shows signup content at the top, then login content when scrolling down
+- Lesson pages show correct content, then 404 errors below
+- Multiple page components are rendering simultaneously instead of one at a time
+
+### Root Cause Analysis
+This indicates:
+- Multiple route matches occurring simultaneously
+- Conditional rendering logic conflicts
+- Component state not properly clearing between route changes
+- Router configuration allowing multiple components to render
+
+### Required Fixes
+
+#### 1. **Fix Router Switch Logic**
+In `client/src/App.tsx`, ensure only ONE route renders at a time:
+
+```typescript
+// Fix the Switch component to prevent multiple route matches:
+
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <div className="max-w-sm mx-auto bg-white min-h-screen relative app-container">
+      <Switch>
+        {!isAuthenticated ? (
+          <>
+            <Route path="/signup" component={Signup} />
+            <Route path="/language" component={LanguageSelection} />
+            <Route path="/" component={Welcome} />
+            {/* Remove any duplicate or conflicting routes */}
+          </>
+        ) : (
+          <>
+            <Route path="/learning-path" component={LearningPath} />
+            <Route path="/learning" component={LearningDashboard} />
+            <Route path="/module/:moduleId/lesson/:lessonId">
+              {(params) => <LessonContent moduleId={params.moduleId} lessonId={params.lessonId} />}
+            </Route>
+            <Route path="/module/:id" component={Module} />
+            <Route path="/progress" component={Progress} />
+            <Route path="/premium" component={Premium} />
+            <Route path="/pricing" component={Pricing} />
+            <Route path="/admin" component={Admin} />
+            <Route path="/" component={Home} />
+            {/* Make sure catch-all is LAST and specific routes come FIRST */}
+          </>
+        )}
+        <Route component={NotFound} />
+      </Switch>
+    </div>
+  );
+}
+```
+
+#### 2. **Check for Conditional Rendering Conflicts**
+Look for components that conditionally render multiple page contents:
+
+```typescript
+// WRONG - Multiple pages rendering in one component:
+function WelcomePage() {
+  return (
+    <div>
+      {showSignup && <SignupForm />}
+      {showLogin && <LoginForm />}
+      {/* This causes both to render if both conditions are true */}
+    </div>
+  );
+}
+
+// CORRECT - Only one component renders:
+function WelcomePage() {
+  if (showSignup) {
+    return <SignupForm />;
+  }
+  
+  if (showLogin) {
+    return <LoginForm />;
+  }
+  
+  return <DefaultWelcomeContent />;
+}
+```
+
+#### 3. **Fix Component State Management**
+Ensure components properly unmount and don't persist state:
+
+```typescript
+// In each page component, add proper cleanup:
+
+export default function SomePage() {
+  // Reset any global state when component mounts
+  useEffect(() => {
+    // Clear any previous page state
+    return () => {
+      // Cleanup when component unmounts
+    };
+  }, []);
+
+  return (
+    <div className="page-container">
+      {/* Single page content only */}
+    </div>
+  );
+}
+```
+
+#### 4. **Check for Multiple Component Exports**
+Ensure each page file only exports ONE default component:
+
+```typescript
+// In each page file (welcome.tsx, signup.tsx, etc.):
+
+// WRONG - Multiple exports or embedded components:
+export function SignupComponent() { ... }
+export function LoginComponent() { ... }
+export default function Welcome() {
+  return (
+    <div>
+      <SignupComponent />
+      <LoginComponent />
+    </div>
+  );
+}
+
+// CORRECT - Single focused component:
+export default function Signup() {
+  return (
+    <div className="signup-page">
+      {/* Only signup content */}
+    </div>
+  );
+}
+```
+
+#### 5. **Fix Route Order and Specificity**
+Ensure more specific routes come before general ones:
+
+```typescript
+// Order routes from most specific to least specific:
+
+<Switch>
+  {/* Most specific routes first */}
+  <Route path="/module/:moduleId/lesson/:lessonId" component={LessonContent} />
+  <Route path="/module/:id" component={Module} />
+  <Route path="/learning-path" component={LearningPath} />
+  <Route path="/learning" component={LearningDashboard} />
+  
+  {/* General routes after specific ones */}
+  <Route path="/pricing" component={Pricing} />
+  <Route path="/progress" component={Progress} />
+  
+  {/* Root route last among authenticated routes */}
+  <Route path="/" component={Home} />
+  
+  {/* Catch-all always last */}
+  <Route component={NotFound} />
+</Switch>
+```
+
+#### 6. **Add Route Debugging**
+Temporarily add logging to see which routes are matching:
+
+```typescript
+// Add this to debug route matching:
+
+import { useLocation } from 'wouter';
+
+function AppContent() {
+  const [location] = useLocation();
+  
+  console.log('Current route:', location);
+  
+  // ... rest of component
+}
+
+// Check console to see if multiple routes are matching
+```
+
+#### 7. **Check for CSS Layout Issues**
+Ensure page containers don't allow content stacking:
+
+```css
+/* Add to your global CSS or component styles: */
+
+.page-container {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Prevent content stacking */
+.app-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ensure pages take full height */
+.app-container > * {
+  min-height: 100vh;
+}
+```
+
+#### 8. **Fix Welcome/Login/Signup Component Logic**
+If you have a combined welcome component, separate it properly:
+
+```typescript
+// If Welcome component handles both login and signup:
+
+// WRONG - Both forms in one component:
+function Welcome() {
+  const [isSignup, setIsSignup] = useState(false);
+  
+  return (
+    <div>
+      {isSignup ? <SignupForm /> : <LoginForm />}
+      {/* Both forms might render due to state conflicts */}
+    </div>
+  );
+}
+
+// CORRECT - Use routing instead:
+// /signup → Signup component
+// / → Welcome/Login component
+```
+
+### Files to Check and Modify
+
+1. **`client/src/App.tsx`** - Fix Switch routing logic
+2. **`client/src/pages/welcome.tsx`** - Ensure single content rendering
+3. **`client/src/pages/signup.tsx`** - Remove any embedded login content
+4. **`client/src/pages/lesson-content.tsx`** - Remove any embedded 404 components
+5. **All page components** - Check for multiple content rendering
+
+### Debug Steps
+
+1. **Add route logging** to see which components are rendering
+2. **Check React DevTools** component tree for duplicate components
+3. **Inspect element** to see if multiple page divs are stacked
+4. **Test navigation** between routes to see if components properly unmount
+
+### Testing Checklist
+
+After fixes:
+- ✅ Only one page component renders at a time
+- ✅ Login page shows only login content (no signup mixed in)
+- ✅ Lesson pages show only lesson content (no 404 errors)
+- ✅ Route changes properly unmount previous components
+- ✅ No content stacking or scrolling to different pages
+- ✅ Clean transitions between routes
+
+### Success Criteria
+
+- Each route shows exactly one page component
+- No vertical stacking of multiple page contents
+- Clean page transitions without content overlap
+- Proper component mounting/unmounting on route changes
+
+Fix the routing logic to ensure only one page component renders at a time, eliminating the stacked content issue.

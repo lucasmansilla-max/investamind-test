@@ -1,0 +1,354 @@
+## Replit AI Prompt: Investamind Subscription System Implementation
+
+### Overview
+Implement a complete subscription management system for Investamind with Stripe and PayPal integration, content gating, and billing management. Integrate seamlessly with existing Express + React + PostgreSQL architecture.
+
+### Required Features
+
+#### 1. **Subscription System Core**
+- 7-day free trial (no credit card required)
+- Monthly ($64.99) and Yearly ($599.99) plans
+- Automatic founder's discount for beta users
+- Upgrade/downgrade logic (immediate upgrades, end-of-cycle downgrades)
+- Payment processing with Stripe and PayPal
+
+#### 2. **Content Gating System**
+- **Free Users**: First module + limited community (5 posts/day, read-only signals)
+- **Premium Users**: All modules + full community + trading signals + early access
+- **Beta Users**: Full premium access + permanent founder badge
+
+#### 3. **Billing Management**
+- Subscription dashboard for users
+- Payment history
+- Plan changes
+- Cancellation flow
+- Failed payment handling
+
+### Database Schema Extensions
+
+Add to existing `shared/schema.ts`:
+
+```typescript
+export const subscriptions = pgTable('subscriptions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  planType: varchar('plan_type', { length: 20 }).notNull(), // 'free', 'premium_monthly', 'premium_yearly'
+  status: varchar('status', { length: 20 }).notNull(), // 'trial', 'active', 'canceled', 'past_due'
+  stripeCustomerId: varchar('stripe_customer_id', { length: 100 }),
+  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 100 }),
+  paypalSubscriptionId: varchar('paypal_subscription_id', { length: 100 }),
+  currentPeriodStart: timestamp('current_period_start'),
+  currentPeriodEnd: timestamp('current_period_end'),
+  trialStart: timestamp('trial_start'),
+  trialEnd: timestamp('trial_end'),
+  canceledAt: timestamp('canceled_at'),
+  founderDiscount: boolean('founder_discount').default(false),
+  discountPercent: integer('discount_percent').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+export const payments = pgTable('payments', {
+  id: serial('id').primaryKey(),
+  subscriptionId: integer('subscription_id').references(() => subscriptions.id).notNull(),
+  stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 100 }),
+  paypalPaymentId: varchar('paypal_payment_id', { length: 100 }),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  status: varchar('status', { length: 20 }).notNull(), // 'pending', 'succeeded', 'failed'
+  paymentMethod: varchar('payment_method', { length: 20 }).notNull(), // 'stripe', 'paypal'
+  paidAt: timestamp('paid_at'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+export const subscriptionHistory = pgTable('subscription_history', {
+  id: serial('id').primaryKey(),
+  subscriptionId: integer('subscription_id').references(() => subscriptions.id).notNull(),
+  action: varchar('action', { length: 50 }).notNull(), // 'created', 'upgraded', 'downgraded', 'canceled', 'renewed'
+  fromPlan: varchar('from_plan', { length: 20 }),
+  toPlan: varchar('to_plan', { length: 20 }),
+  effectiveDate: timestamp('effective_date').notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+// Add to existing users table
+export const usersSubscriptionExtensions = {
+  isBetaUser: boolean('is_beta_user').default(false),
+  betaStartDate: timestamp('beta_start_date'),
+  subscriptionStatus: varchar('subscription_status', { length: 20 }).default('free') // 'free', 'trial', 'premium'
+};
+```
+
+### API Routes to Add
+
+Add to `server/routes.ts`:
+
+```typescript
+// Subscription management routes
+app.get("/api/subscription/status", async (req, res) => {
+  // Get user's current subscription status
+});
+
+app.post("/api/subscription/create-trial", async (req, res) => {
+  // Start 7-day free trial
+});
+
+app.post("/api/subscription/create-payment-intent", async (req, res) => {
+  // Create Stripe payment intent for subscription
+});
+
+app.post("/api/subscription/confirm-payment", async (req, res) => {
+  // Confirm payment and activate subscription
+});
+
+app.post("/api/subscription/upgrade", async (req, res) => {
+  // Immediate upgrade to higher plan
+});
+
+app.post("/api/subscription/downgrade", async (req, res) => {
+  // Schedule downgrade at end of billing cycle
+});
+
+app.post("/api/subscription/cancel", async (req, res) => {
+  // Cancel subscription (access until period end)
+});
+
+app.get("/api/subscription/billing-history", async (req, res) => {
+  // Get user's payment history
+});
+
+// Content gating
+app.get("/api/content/access-check", async (req, res) => {
+  // Check if user can access specific content
+});
+
+// Stripe webhooks
+app.post("/api/webhooks/stripe", async (req, res) => {
+  // Handle Stripe webhooks (payment success, failures, etc.)
+});
+
+// PayPal webhooks
+app.post("/api/webhooks/paypal", async (req, res) => {
+  // Handle PayPal subscription events
+});
+
+// Beta user management (admin only)
+app.post("/api/admin/beta-users/grant-access", async (req, res) => {
+  // Grant beta access to specific users
+});
+
+app.get("/api/admin/subscriptions", async (req, res) => {
+  // Admin view of all subscriptions
+});
+```
+
+### Stripe Integration Setup
+
+Create `server/services/stripeService.ts`:
+
+```typescript
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2023-10-16'
+});
+
+export const PRICING_PLANS = {
+  premium_monthly: {
+    amount: 6499, // $64.99 in cents
+    interval: 'month',
+    stripePriceId: process.env.STRIPE_MONTHLY_PRICE_ID
+  },
+  premium_yearly: {
+    amount: 59999, // $599.99 in cents
+    interval: 'year',
+    stripePriceId: process.env.STRIPE_YEARLY_PRICE_ID
+  }
+};
+
+export async function createCustomer(email: string, name: string) {
+  return await stripe.customers.create({
+    email,
+    name,
+    metadata: { source: 'investamind' }
+  });
+}
+
+export async function createPaymentIntent(customerId: string, planType: string, founderDiscount = false) {
+  const plan = PRICING_PLANS[planType];
+  let amount = plan.amount;
+  
+  if (founderDiscount) {
+    amount = Math.round(amount * 0.5); // 50% founder discount
+  }
+  
+  return await stripe.paymentIntents.create({
+    amount,
+    currency: 'usd',
+    customer: customerId,
+    metadata: { planType, founderDiscount: founderDiscount.toString() }
+  });
+}
+
+export async function createSubscription(customerId: string, priceId: string, trialDays = 7) {
+  return await stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: priceId }],
+    trial_period_days: trialDays,
+    metadata: { source: 'investamind' }
+  });
+}
+```
+
+### Content Gating Middleware
+
+Create `server/middleware/contentGating.ts`:
+
+```typescript
+export async function checkContentAccess(req: Request, res: Response, next: NextFunction) {
+  const sessionId = req.cookies?.sessionId;
+  if (!sessionId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  
+  const session = sessions.get(sessionId);
+  if (!session) {
+    return res.status(401).json({ message: "Invalid session" });
+  }
+  
+  const user = await storage.getUser(session.userId);
+  const subscription = await storage.getUserSubscription(session.userId);
+  
+  // Check access based on subscription status
+  const hasAccess = checkUserAccess(user, subscription, req.params.contentType);
+  
+  if (!hasAccess) {
+    return res.status(403).json({ 
+      message: "Premium subscription required",
+      upgradeUrl: "/premium" 
+    });
+  }
+  
+  next();
+}
+
+function checkUserAccess(user: any, subscription: any, contentType: string): boolean {
+  // Beta users get full access
+  if (user.isBetaUser) return true;
+  
+  // Premium subscribers get full access
+  if (subscription?.status === 'active' || subscription?.status === 'trial') {
+    return true;
+  }
+  
+  // Free users - limited access
+  if (contentType === 'basic_module_1') return true;
+  if (contentType === 'community_read') return true;
+  
+  return false;
+}
+```
+
+### Frontend Components Structure
+
+Create these new components in `client/src/components/`:
+
+```
+/subscription/
+  ├── SubscriptionStatus.tsx     // Current plan display
+  ├── PricingPlans.tsx          // Plan selection
+  ├── PaymentForm.tsx           // Stripe/PayPal payment
+  ├── BillingHistory.tsx        // Payment history
+  ├── PlanManagement.tsx        // Upgrade/downgrade/cancel
+  └── TrialBanner.tsx          // Trial countdown
+
+/content-gating/
+  ├── PremiumGate.tsx          // Premium content blocker
+  ├── UpgradePrompt.tsx        // Conversion prompts
+  └── AccessChecker.tsx        // Component wrapper for gated content
+```
+
+### New Pages to Add
+
+Add to `client/src/pages/`:
+
+```typescript
+// pages/premium.tsx - Subscription management & pricing
+// pages/billing.tsx - Billing history & payment methods
+// pages/upgrade.tsx - Plan upgrade flow
+```
+
+### Environment Variables to Add
+
+```env
+# Stripe
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_MONTHLY_PRICE_ID=price_...
+STRIPE_YEARLY_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# PayPal
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_WEBHOOK_ID=...
+
+# Subscription settings
+TRIAL_PERIOD_DAYS=7
+FOUNDER_DISCOUNT_PERCENT=50
+```
+
+### Package Dependencies to Add
+
+```json
+{
+  "dependencies": {
+    "stripe": "^14.0.0",
+    "@stripe/stripe-js": "^2.0.0",
+    "@stripe/react-stripe-js": "^2.0.0",
+    "@paypal/react-paypal-js": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/stripe": "^8.0.0"
+  }
+}
+```
+
+### Integration Points
+
+#### **Content Gating Integration**
+- Wrap existing learning modules with `<AccessChecker>` component
+- Add premium badges to locked content
+- Show upgrade prompts for free users
+
+#### **Navigation Updates**
+- Add subscription status indicator in header
+- Update premium page to show billing management for subscribers
+- Add trial countdown banner for trial users
+
+#### **Database Migration**
+- Create migration script for new subscription tables
+- Update existing users table with subscription fields
+- Set beta users flag for your 25-30 community members
+
+### Key Implementation Features
+
+1. **Trial System**: Automatic 7-day trial activation on first premium content access
+2. **Founder Benefits**: Automatic 50% discount + permanent founder badge for beta users
+3. **Graceful Upgrades**: Immediate access + prorated billing
+4. **Smart Downgrades**: Access continues until billing cycle ends
+5. **Content Protection**: Server-side access control for all premium features
+6. **Payment Recovery**: Automatic retry for failed payments with user notifications
+7. **Admin Dashboard**: View and manage all subscriptions
+
+### Success Criteria
+- ✅ Seamless subscription creation and management
+- ✅ Secure content gating system
+- ✅ Multiple payment methods (Stripe + PayPal)
+- ✅ Trial system with smooth conversion flow
+- ✅ Founder benefits for beta users
+- ✅ Admin tools for subscription management
+- ✅ Mobile-responsive billing interface
+
+Build this as a production-ready subscription system that integrates cleanly with your existing auth and user management. Focus on security, user experience, and reliable payment processing.
