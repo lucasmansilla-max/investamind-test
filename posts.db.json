@@ -1,0 +1,140 @@
+[
+  {
+    "id": "1762201308159-b2s8evs",
+    "createdAt": "2025-11-03T20:21:48.159Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "general",
+    "content": "This is a test post with #hashtag and @mention"
+  },
+  {
+    "id": "1762201136273-qnme8mr",
+    "createdAt": "2025-11-03T20:18:56.273Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "general",
+    "content": "This is a test post with #hashtag and @mention"
+  },
+  {
+    "id": "1761785165222-ixbgt6w",
+    "createdAt": "2025-10-30T00:46:05.223Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "market_analysis",
+    "content": "Subir",
+    "ticker": "Aapl",
+    "analysisType": "Sentiment"
+  },
+  {
+    "id": "1761444546864-t36vc3f",
+    "createdAt": "2025-10-26T02:09:06.864Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "price_prediction",
+    "content": "This is going to be huge!",
+    "ticker": "AMD",
+    "timeFrame": "1W",
+    "predictedPrice": "300",
+    "confidenceLevel": "80"
+  },
+  {
+    "id": "1761427145274-sy61cx4",
+    "createdAt": "2025-10-25T21:19:05.274Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "win",
+    "content": "Big win today!",
+    "resultType": "profit",
+    "valueKind": "percent",
+    "resultValue": "12"
+  },
+  {
+    "id": "1761427143598-22twojt",
+    "createdAt": "2025-10-25T21:19:03.598Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "trading_signal",
+    "content": "Strong buy signal for AAPL",
+    "ticker": "AAPL",
+    "signalType": "Buy",
+    "entryPrice": "175.50",
+    "targetPrice": "185.00",
+    "stopLoss": "172.00",
+    "timeFrame": "1 week"
+  },
+  {
+    "id": "1761427136760-7jsifjx",
+    "createdAt": "2025-10-25T21:18:56.760Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "win",
+    "content": "Big win today!",
+    "resultType": "profit",
+    "valueKind": "dollar",
+    "resultValue": "2000"
+  },
+  {
+    "id": "1761427135095-9p8d95h",
+    "createdAt": "2025-10-25T21:18:55.095Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "price_prediction",
+    "content": "Tesla will hit $300",
+    "ticker": "TSLA",
+    "timeFrame": "3 months",
+    "predictedPrice": "300.00",
+    "confidenceLevel": "High"
+  },
+  {
+    "id": "1761427133102-sm983w7",
+    "createdAt": "2025-10-25T21:18:53.102Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "trading_signal",
+    "content": "Strong buy signal for AAPL",
+    "ticker": "AAPL",
+    "signalType": "Buy",
+    "entryPrice": "175.50",
+    "targetPrice": "185.00",
+    "stopLoss": "172.00",
+    "timeFrame": "1 week"
+  },
+  {
+    "id": "1761427115728-bupg7nq",
+    "createdAt": "2025-10-25T21:18:35.728Z",
+    "author": {
+      "name": "You",
+      "handle": "@you",
+      "avatarInitials": "U"
+    },
+    "type": "question",
+    "content": "Test post from curl"
+  }
+]
