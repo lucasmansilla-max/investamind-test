@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { LanguageProvider } from "@/contexts/language-context";
-import LanguageSelectionModal from "@/components/language-selection-modal";
+import LanguageSelectionModal from "./language-selection-modal";
 
 // Pages
 import Welcome from "@/pages/welcome";
@@ -27,12 +27,15 @@ import NotFound from "@/pages/not-found";
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
-  
+
   // Initialize notifications for authenticated users
   useNotifications(isAuthenticated);
-  
+
   // Debug logging to track route rendering
-  console.log('Current route:', location, 'Auth state:', { isAuthenticated, isLoading });
+  console.log("Current route:", location, "Auth state:", {
+    isAuthenticated,
+    isLoading,
+  });
 
   if (isLoading) {
     return (
@@ -42,15 +45,19 @@ function AppContent() {
             <i className="fas fa-chart-line text-white text-xl"></i>
           </div>
           <p className="text-brand-brown font-medium">Loading Investamind...</p>
-          <p className="text-gray-500 text-sm mt-2">Checking authentication...</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Checking authentication...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-screen relative app-container" 
-         style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden' }}>
+    <div
+      className="max-w-sm mx-auto bg-white min-h-screen relative app-container"
+      style={{ height: "100vh", maxHeight: "100vh", overflow: "hidden" }}
+    >
       <Switch>
         {!isAuthenticated ? (
           <>
@@ -62,7 +69,12 @@ function AppContent() {
         ) : (
           <>
             <Route path="/module/:moduleId/lesson/:lessonId">
-              {(params) => <LessonContent moduleId={params.moduleId} lessonId={params.lessonId} />}
+              {(params) => (
+                <LessonContent
+                  moduleId={params.moduleId}
+                  lessonId={params.lessonId}
+                />
+              )}
             </Route>
             <Route path="/module/:id" component={Module} />
             <Route path="/learning-path" component={LearningPath} />

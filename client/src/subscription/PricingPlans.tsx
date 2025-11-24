@@ -18,16 +18,15 @@ export default function PricingPlans({ onSubscribe }: PricingPlansProps) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   // Get subscription status
-  const { data: subscriptionData } = useQuery({
+  const { data: subscriptionData } = useQuery<{ subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean }>({
     queryKey: ["/api/subscription/status"],
   });
 
   // Start trial mutation
   const startTrialMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/subscription/create-trial", {
-        method: "POST",
-      });
+      // apiRequest expects (method, url, data?) — pass method and url, no body needed here
+      return await apiRequest("POST", "/api/subscription/create-trial");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });
@@ -48,11 +47,8 @@ export default function PricingPlans({ onSubscribe }: PricingPlansProps) {
   // Upgrade subscription mutation
   const upgradeMutation = useMutation({
     mutationFn: async (planType: string) => {
-      return await apiRequest("/api/subscription/upgrade", {
-        method: "POST",
-        body: JSON.stringify({ planType }),
-        headers: { "Content-Type": "application/json" },
-      });
+      // apiRequest accepts (method, url, data) — pass the plan object as data
+      return await apiRequest("POST", "/api/subscription/upgrade", { planType });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });

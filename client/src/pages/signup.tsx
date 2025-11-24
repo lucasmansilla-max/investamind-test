@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
-import ExperienceLevelModal from "@/components/experience-level-modal";
+import ExperienceLevelModal from "@/experience-level-modal";
 
 const signupSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

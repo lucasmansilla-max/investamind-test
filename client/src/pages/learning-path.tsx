@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import BottomNavigation from "@/components/bottom-navigation";
+import BottomNavigation from "@/bottom-navigation";
 import { useProgress } from "@/hooks/use-progress";
 import type { LearningModule } from "@shared/schema";
 
@@ -20,7 +20,7 @@ export default function LearningPath() {
 
   const isModuleAccessible = (module: LearningModule) => {
     if (module.orderIndex === 1) return true;
-    
+
     // Check if previous module is completed
     const previousModule = modules.find(m => m.orderIndex === module.orderIndex - 1);
     return previousModule ? isModuleCompleted(previousModule.id) : false;
@@ -37,7 +37,7 @@ export default function LearningPath() {
       <div className="pb-20">
         <div className="p-4">
           <div className="flex items-center mb-6">
-            <button 
+            <button
               onClick={() => setLocation("/")}
               className="mr-4 touch-target text-brand-brown hover:text-brand-orange transition-colors"
             >
@@ -45,7 +45,7 @@ export default function LearningPath() {
             </button>
             <h2 className="text-2xl font-bold text-brand-brown">Learning Path</h2>
           </div>
-          
+
           <div className="space-y-4">
             {modules.map((module) => {
               const status = getModuleStatus(module);
@@ -54,11 +54,11 @@ export default function LearningPath() {
               const locked = status === "locked";
 
               return (
-                <Card 
-                  key={module.id} 
+                <Card
+                  key={module.id}
                   className={`shadow-sm border-2 ${
-                    completed ? "border-brand-light-green" : 
-                    available ? "border-brand-orange" : 
+                    completed ? "border-brand-light-green" :
+                    available ? "border-brand-orange" :
                     "border-gray-200 opacity-60"
                   }`}
                 >
@@ -95,7 +95,7 @@ export default function LearningPath() {
                         </div>
                       </div>
                       {available && !completed && (
-                        <Button 
+                        <Button
                           onClick={() => setLocation(`/module/${module.id}`)}
                           className="bg-brand-orange text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors touch-target"
                         >
@@ -103,7 +103,7 @@ export default function LearningPath() {
                         </Button>
                       )}
                       {completed && (
-                        <Button 
+                        <Button
                           onClick={() => setLocation(`/module/${module.id}`)}
                           variant="outline"
                           className="border-brand-light-green text-brand-dark-green px-4 py-2 rounded-lg font-medium hover:bg-brand-light-green/10 transition-colors touch-target"

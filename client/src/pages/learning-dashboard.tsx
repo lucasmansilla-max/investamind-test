@@ -4,8 +4,8 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import ExpandableModuleCard from "@/components/expandable-module-card";
-import BottomNavigation from "@/components/bottom-navigation";
+import ExpandableModuleCard from "@/expandable-module-card";
+import BottomNavigation from "@/bottom-navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { Trophy, Target, Flame, Clock, BookOpen, ChevronLeft } from "lucide-react";
 

@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
-import BottomNavigation from "@/components/bottom-navigation";
-import ProgressBar from "@/components/progress-bar";
+import BottomNavigation from "@/bottom-navigation";
+import ProgressBar from "@/progress-bar";
 import { useProgress } from "@/hooks/use-progress";
 import { useTranslation } from "@/lib/i18n";
 

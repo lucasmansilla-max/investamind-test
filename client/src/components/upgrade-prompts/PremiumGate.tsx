@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Lock, Crown, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PremiumGateProps {
   requiredPlan?: "premium" | "trial";
@@ -21,8 +22,21 @@ export default function PremiumGate({
 }: PremiumGateProps) {
   const [, setLocation] = useLocation();
 
-  const { data: subscriptionData } = useQuery({
+  const { data: subscriptionData } = useQuery<{ subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean }>({
     queryKey: ["/api/subscription/status"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/subscription/status");
+        return (await res.json()) as { subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean };
+      } catch (err) {
+        // Return an empty object on error/unauthorized so callers can safely check properties
+        return {} as { subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean };
+      }
+    },
+    // Keep this status query stable and avoid unexpected refetches
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   // Check if user has access

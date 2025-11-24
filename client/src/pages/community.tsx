@@ -6,10 +6,10 @@ import { Users, Award, Gift, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/contexts/language-context";
-import CommunityFeed from "@/components/community/CommunityFeedSimple";
-import BadgeProgressDashboard from "@/components/badges/BadgeProgressDashboard";
-import ReferralDashboard from "@/components/referrals/ReferralDashboard";
-import BottomNavigation from "@/components/bottom-navigation";
+import CommunityFeed from "@/community/CommunityFeedSimple";
+import BadgeProgressDashboard from "@/badges/BadgeProgressDashboard";
+import ReferralDashboard from "@/referrals/ReferralDashboard";
+import BottomNavigation from "@/bottom-navigation";
 
 export default function Community() {
   const [, setLocation] = useLocation();

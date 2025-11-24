@@ -11,15 +11,26 @@ export default function SubscriptionStatus() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const { data: subscriptionData, isLoading } = useQuery({
+  const { data: subscriptionData, isLoading } = useQuery<{ subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean }>({
     queryKey: ["/api/subscription/status"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/subscription/status");
+        return (await res.json()) as { subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean };
+      } catch (err) {
+        // Return an empty object on error/unauthorized so callers can safely check properties
+        return {} as { subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean };
+      }
+    },
+    // Avoid unexpected refetch behavior for this status query
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/subscription/cancel", {
-        method: "POST",
-      });
+      return await apiRequest("POST", "/api/subscription/cancel");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });

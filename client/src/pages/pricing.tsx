@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Crown, Check, Star, Zap, Users, TrendingUp, ArrowLeft, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import BottomNavigation from "@/components/bottom-navigation";
-import BetaCodeInput from "@/components/BetaCodeInput";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import BottomNavigation from "@/bottom-navigation";
+import BetaCodeInput from "@/BetaCodeInput";
 
 export default function Pricing() {
   const [, setLocation] = useLocation();
@@ -19,6 +19,20 @@ export default function Pricing() {
   // Get subscription status
   const { data: subscriptionData } = useQuery({
     queryKey: ["/api/subscription/status"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/subscription/status");
+        // Ensure the parsed JSON matches the expected shape
+        return (await res.json()) as { subscription?: any; isBetaUser?: boolean };
+      } catch (err) {
+        // Return an empty object on error/unauthorized so callers can safely check properties
+        return {} as { subscription?: any; isBetaUser?: boolean };
+      }
+    },
+    // local overrides to avoid surprising refetch/throws for auth/404 cases
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   // Start trial mutation
