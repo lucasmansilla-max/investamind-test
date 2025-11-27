@@ -1,11 +1,18 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertUserProgressSchema, insertNotificationSchema } from "@shared/schema";
+import {
+  insertUserSchema,
+  insertUserProgressSchema,
+  insertNotificationSchema,
+} from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { loadPosts, savePosts, type Post } from "./postsStore";
-import { parsePaginationParams, buildPaginationResult } from "./utils/pagination";
+import {
+  parsePaginationParams,
+  buildPaginationResult,
+} from "./utils/pagination";
 import postsRouter from "./modules/posts/routes";
 import searchRouter from "./modules/search/routes";
 import usersRouter from "./modules/users/routes";
@@ -22,19 +29,21 @@ const sessions = new Map<string, { userId: number; email: string }>();
 
 // Language helper function
 function reqLang(req: Request): string {
-  const q = (req.query.lang || req.headers["accept-language"] || "en").toString().slice(0, 2);
+  const q = (req.query.lang || req.headers["accept-language"] || "en")
+    .toString()
+    .slice(0, 2);
   return q === "es" ? "es" : "en";
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
   // Community posts endpoints for mobile app (Vibecode)
   app.get("/posts", (req, res) => {
     try {
       const posts = loadPosts();
       // Sort by createdAt descending (newest first)
-      const sortedPosts = posts.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedPosts = posts.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       res.json({ posts: sortedPosts });
     } catch (error) {
@@ -49,26 +58,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate required fields
       if (!body.type || !body.content) {
-        return res.status(400).json({ message: "Missing required fields: type and content" });
+        return res
+          .status(400)
+          .json({ message: "Missing required fields: type and content" });
       }
 
       // Type-specific validation
       if (body.type === "trading_signal") {
         if (!body.ticker || !body.signalType || !body.entryPrice) {
-          return res.status(400).json({ 
-            message: "Trading signal requires: ticker, signalType, entryPrice" 
+          return res.status(400).json({
+            message: "Trading signal requires: ticker, signalType, entryPrice",
           });
         }
       } else if (body.type === "price_prediction") {
-        if (!body.ticker || !body.predictedPrice || !body.timeFrame || !body.confidenceLevel) {
-          return res.status(400).json({ 
-            message: "Price prediction requires: ticker, predictedPrice, timeFrame, confidenceLevel" 
+        if (
+          !body.ticker ||
+          !body.predictedPrice ||
+          !body.timeFrame ||
+          !body.confidenceLevel
+        ) {
+          return res.status(400).json({
+            message:
+              "Price prediction requires: ticker, predictedPrice, timeFrame, confidenceLevel",
           });
         }
       } else if (body.type === "win") {
         if (!body.resultType || !body.valueKind || !body.resultValue) {
-          return res.status(400).json({ 
-            message: "Win post requires: resultType, valueKind, resultValue" 
+          return res.status(400).json({
+            message: "Win post requires: resultType, valueKind, resultValue",
           });
         }
       }
@@ -83,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         author: {
           name: "You",
           handle: "@you",
-          avatarInitials: "U"
+          avatarInitials: "U",
         },
         type: body.type,
         content: body.content || "",
@@ -113,39 +130,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create post" });
     }
   });
-  
+
   // Auth routes
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
       }
-      
+
       // Hash password (in a real app, use proper password hashing)
       const hashedPassword = await bcrypt.hash(userData.password, 10);
-      
+
       const user = await storage.createUser({
         ...userData,
         password: hashedPassword,
       });
-      
+
       // Create session
       const sessionId = Math.random().toString(36).substring(7);
       sessions.set(sessionId, { userId: user.id, email: user.email });
-      
-      res.cookie('sessionId', sessionId, { httpOnly: true });
-      res.json({ 
-        user: { 
-          id: user.id, 
-          email: user.email, 
+
+      res.cookie("sessionId", sessionId, { httpOnly: true });
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          selectedLanguage: user.selectedLanguage 
-        } 
+          selectedLanguage: user.selectedLanguage,
+        },
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -156,30 +173,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signin", async (req, res) => {
     try {
       const { email, password } = req.body;
-      
+
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
+
       const validPassword = await bcrypt.compare(password, user.password);
       if (!validPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
+
       // Create session
       const sessionId = Math.random().toString(36).substring(7);
       sessions.set(sessionId, { userId: user.id, email: user.email });
-      
-      res.cookie('sessionId', sessionId, { httpOnly: true });
-      res.json({ 
-        user: { 
-          id: user.id, 
-          email: user.email, 
+
+      res.cookie("sessionId", sessionId, { httpOnly: true });
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          selectedLanguage: user.selectedLanguage 
-        } 
+          selectedLanguage: user.selectedLanguage,
+        },
       });
     } catch (error) {
       console.error("Signin error:", error);
@@ -192,50 +209,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (sessionId) {
       sessions.delete(sessionId);
     }
-    res.clearCookie('sessionId', { 
-      httpOnly: true, 
-      path: '/',
-      expires: new Date(0)
+    res.clearCookie("sessionId", {
+      httpOnly: true,
+      path: "/",
+      expires: new Date(0),
     });
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.status(200).json({ message: "Logged out successfully" });
   });
 
   app.get("/api/auth/user", async (req, res) => {
     try {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+
       console.log("Auth check - cookies:", req.cookies);
       console.log("Auth check - sessionId:", req.cookies?.sessionId);
       console.log("Active sessions:", Array.from(sessions.keys()));
-      
+
       const sessionId = req.cookies?.sessionId;
       if (!sessionId) {
         console.log("No session ID found in cookies");
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         console.log("Invalid session ID:", sessionId);
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       const user = await storage.getUser(session.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       console.log("User from storage:", user);
-      
-      res.json({ 
-        user: { 
-          id: user.id, 
-          email: user.email, 
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           selectedLanguage: user.selectedLanguage,
@@ -244,8 +261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           onboardingCompleted: user.onboardingCompleted,
           username: user.username,
           bio: user.bio,
-          avatarUrl: user.avatarUrl
-        } 
+          avatarUrl: user.avatarUrl,
+        },
       });
     } catch (error) {
       console.error("Get user error:", error);
@@ -259,46 +276,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       // Extract allowed fields from request body
       const updates: Partial<User> = {};
-      const allowedFields = ['username', 'firstName', 'lastName', 'bio', 'avatarUrl', 'selectedLanguage', 'experienceLevel', 'investmentStyle'];
-      
+      const allowedFields = [
+        "username",
+        "firstName",
+        "lastName",
+        "bio",
+        "avatarUrl",
+        "selectedLanguage",
+        "experienceLevel",
+        "investmentStyle",
+      ];
+
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
           (updates as any)[field] = req.body[field];
         }
       }
-      
+
       // Validate username if provided
       if (updates.username !== undefined) {
-        if (typeof updates.username !== 'string') {
+        if (typeof updates.username !== "string") {
           return res.status(400).json({ message: "Username must be a string" });
         }
         if (updates.username.length > 30) {
-          return res.status(400).json({ message: "Username must be 30 characters or less" });
+          return res
+            .status(400)
+            .json({ message: "Username must be 30 characters or less" });
         }
         // Check if username is already taken
         if (updates.username) {
-          const existingUser = await storage.getUserByUsername?.(updates.username);
+          const existingUser = await storage.getUserByUsername?.(
+            updates.username,
+          );
           if (existingUser && existingUser.id !== session.userId) {
             return res.status(400).json({ message: "Username already taken" });
           }
         }
       }
-      
+
       // Update user
       const updatedUser = await storage.updateUser(session.userId, updates);
-      
-      res.json({ 
-        user: { 
-          id: updatedUser.id, 
-          email: updatedUser.email, 
+
+      res.json({
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           selectedLanguage: updatedUser.selectedLanguage,
@@ -307,8 +337,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           onboardingCompleted: updatedUser.onboardingCompleted,
           username: updatedUser.username,
           bio: updatedUser.bio,
-          avatarUrl: updatedUser.avatarUrl
-        } 
+          avatarUrl: updatedUser.avatarUrl,
+        },
       });
     } catch (error) {
       console.error("Update user error:", error);
@@ -321,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (sessionId) {
       sessions.delete(sessionId);
     }
-    res.clearCookie('sessionId');
+    res.clearCookie("sessionId");
     res.json({ message: "Signed out successfully" });
   });
 
@@ -331,39 +361,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       const { experienceLevel } = req.body;
       if (!experienceLevel) {
-        return res.status(400).json({ message: "Experience level is required" });
+        return res
+          .status(400)
+          .json({ message: "Experience level is required" });
       }
-      
+
       // Update user experience level in storage
       const user = await storage.getUser(session.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Update the user with new experience level
       console.log("Updating user with experience level:", experienceLevel);
-      const updatedUser = await storage.updateUser(session.userId, { 
-        experienceLevel 
+      const updatedUser = await storage.updateUser(session.userId, {
+        experienceLevel,
       });
       console.log("Updated user:", updatedUser);
-      
-      res.json({ 
-        user: { 
-          id: updatedUser.id, 
-          email: updatedUser.email, 
+
+      res.json({
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           selectedLanguage: updatedUser.selectedLanguage,
-          experienceLevel: updatedUser.experienceLevel
-        } 
+          experienceLevel: updatedUser.experienceLevel,
+        },
       });
     } catch (error) {
       console.error("Update experience error:", error);
@@ -378,38 +410,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       const { investmentStyle } = req.body;
       if (!investmentStyle) {
-        return res.status(400).json({ message: "Investment style is required" });
+        return res
+          .status(400)
+          .json({ message: "Investment style is required" });
       }
-      
+
       const user = await storage.getUser(session.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      const updatedUser = await storage.updateUser(session.userId, { 
+
+      const updatedUser = await storage.updateUser(session.userId, {
         investmentStyle,
-        onboardingCompleted: true
+        onboardingCompleted: true,
       });
-      
-      res.json({ 
-        user: { 
-          id: updatedUser.id, 
-          email: updatedUser.email, 
+
+      res.json({
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           selectedLanguage: updatedUser.selectedLanguage,
           experienceLevel: updatedUser.experienceLevel,
           investmentStyle: updatedUser.investmentStyle,
-          onboardingCompleted: updatedUser.onboardingCompleted
-        } 
+          onboardingCompleted: updatedUser.onboardingCompleted,
+        },
       });
     } catch (error) {
       console.error("Update investment style error:", error);
@@ -422,18 +456,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const lang = reqLang(req);
       const modules = await storage.getAllModules();
-      
+
       // Localize module content based on language
-      const localizedModules = modules.map(m => ({
+      const localizedModules = modules.map((m) => ({
         ...m,
         title: lang === "es" && m.titleEs ? m.titleEs : m.title,
-        description: lang === "es" && m.descriptionEs ? m.descriptionEs : m.description,
+        description:
+          lang === "es" && m.descriptionEs ? m.descriptionEs : m.description,
         content: lang === "es" && m.contentEs ? m.contentEs : m.content,
-        quizQuestion: lang === "es" && m.quizQuestionEs ? m.quizQuestionEs : m.quizQuestion,
-        quizOptions: lang === "es" && m.quizOptionsEs ? m.quizOptionsEs : m.quizOptions,
-        correctAnswer: lang === "es" && m.correctAnswerEs ? m.correctAnswerEs : m.correctAnswer,
+        quizQuestion:
+          lang === "es" && m.quizQuestionEs ? m.quizQuestionEs : m.quizQuestion,
+        quizOptions:
+          lang === "es" && m.quizOptionsEs ? m.quizOptionsEs : m.quizOptions,
+        correctAnswer:
+          lang === "es" && m.correctAnswerEs
+            ? m.correctAnswerEs
+            : m.correctAnswer,
       }));
-      
+
       res.json(localizedModules);
     } catch (error) {
       console.error("Get modules error:", error);
@@ -446,22 +486,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lang = reqLang(req);
       const moduleId = parseInt(req.params.id);
       const module = await storage.getModule(moduleId);
-      
+
       if (!module) {
         return res.status(404).json({ message: "Module not found" });
       }
-      
+
       // Localize module content based on language
       const localizedModule = {
         ...module,
         title: lang === "es" && module.titleEs ? module.titleEs : module.title,
-        description: lang === "es" && module.descriptionEs ? module.descriptionEs : module.description,
-        content: lang === "es" && module.contentEs ? module.contentEs : module.content,
-        quizQuestion: lang === "es" && module.quizQuestionEs ? module.quizQuestionEs : module.quizQuestion,
-        quizOptions: lang === "es" && module.quizOptionsEs ? module.quizOptionsEs : module.quizOptions,
-        correctAnswer: lang === "es" && module.correctAnswerEs ? module.correctAnswerEs : module.correctAnswer,
+        description:
+          lang === "es" && module.descriptionEs
+            ? module.descriptionEs
+            : module.description,
+        content:
+          lang === "es" && module.contentEs ? module.contentEs : module.content,
+        quizQuestion:
+          lang === "es" && module.quizQuestionEs
+            ? module.quizQuestionEs
+            : module.quizQuestion,
+        quizOptions:
+          lang === "es" && module.quizOptionsEs
+            ? module.quizOptionsEs
+            : module.quizOptions,
+        correctAnswer:
+          lang === "es" && module.correctAnswerEs
+            ? module.correctAnswerEs
+            : module.correctAnswer,
       };
-      
+
       res.json(localizedModule);
     } catch (error) {
       console.error("Get module error:", error);
@@ -476,12 +529,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       const progress = await storage.getUserProgress(session.userId);
       res.json(progress);
     } catch (error) {
@@ -496,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -506,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: session.userId,
       });
-      
+
       const progress = await storage.updateProgress(progressData);
       res.json(progress);
     } catch (error) {
@@ -534,12 +587,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       const notifications = await storage.getUserNotifications(session.userId);
       res.json(notifications);
     } catch (error) {
@@ -554,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -564,7 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId: session.userId,
       });
-      
+
       const notification = await storage.createNotification(notificationData);
       res.json(notification);
     } catch (error) {
@@ -580,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -588,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Support optional pagination - if no cursor provided, return full feed (backward compatible)
       const usePagination = !!req.query.cursor || req.query.limit;
-      
+
       let posts;
       if (usePagination) {
         const { cursor, limit } = parsePaginationParams(req.query);
@@ -598,37 +651,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           limit,
         });
         // Build pagination result with proper typing
-        const postsWithDates = posts.filter(p => p.createdAt !== null) as Array<{ createdAt: Date; id: number } & typeof posts[0]>;
+        const postsWithDates = posts.filter(
+          (p) => p.createdAt !== null,
+        ) as Array<{ createdAt: Date; id: number } & (typeof posts)[0]>;
         const paginationResult = buildPaginationResult(postsWithDates, limit);
         posts = paginationResult.data;
       } else {
         // Full feed mode - get all posts (legacy behavior)
         posts = await storage.getAllPosts();
       }
-      
+
       // Add user information and interaction status to each post
-      const postsWithUsers = await Promise.all(posts.map(async (post) => {
-        const user = await storage.getUser(post.userId);
-        const isLiked = await storage.isPostLiked(session.userId, post.id);
-        const isReposted = await storage.isPostReposted(session.userId, post.id);
-        return {
-          ...post,
-          user: user ? {
-            id: user.id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            currentBadge: "TRADER" // Default badge for now
-          } : {
-            id: post.userId,
-            firstName: "Unknown",
-            lastName: "User",
-            currentBadge: "NEWBIE"
-          },
-          isLiked,
-          isReposted,
-          isBookmarked: false // Default for now
-        };
-      }));
+      const postsWithUsers = await Promise.all(
+        posts.map(async (post) => {
+          const user = await storage.getUser(post.userId);
+          const isLiked = await storage.isPostLiked(session.userId, post.id);
+          const isReposted = await storage.isPostReposted(
+            session.userId,
+            post.id,
+          );
+          return {
+            ...post,
+            user: user
+              ? {
+                  id: user.id,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  currentBadge: "TRADER", // Default badge for now
+                }
+              : {
+                  id: post.userId,
+                  firstName: "Unknown",
+                  lastName: "User",
+                  currentBadge: "NEWBIE",
+                },
+            isLiked,
+            isReposted,
+            isBookmarked: false, // Default for now
+          };
+        }),
+      );
 
       // Maintain backward compatibility: return array for now
       // TODO: Update frontend to handle pagination metadata
@@ -645,42 +707,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
 
       const { content } = req.body;
-      
+
       if (!content || !content.trim()) {
         return res.status(400).json({ message: "Content is required" });
       }
 
       // Use the new posts service which handles hashtag/mention parsing and storage
-      const { createPost } = await import('./modules/posts/service.js');
+      const { createPost } = await import("./modules/posts/service.js");
       const newPost = await createPost({
         userId: session.userId,
         body: content.trim(),
         imageUrl: req.body.imageUrl,
         io: req.app.io,
       });
-      
+
       // Add user information to the response for backward compatibility
       const user = await storage.getUser(session.userId);
       const postWithUser = {
         ...newPost,
-        user: user ? {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          currentBadge: "TRADER"
-        } : {
-          id: session.userId,
-          firstName: "Unknown",
-          lastName: "User",
-          currentBadge: "NEWBIE"
-        }
+        user: user
+          ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              currentBadge: "TRADER",
+            }
+          : {
+              id: session.userId,
+              firstName: "Unknown",
+              lastName: "User",
+              currentBadge: "NEWBIE",
+            },
       };
 
       res.status(201).json(postWithUser);
@@ -697,7 +761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -705,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const postId = parseInt(req.params.postId);
       const isLiked = await storage.isPostLiked(session.userId, postId);
-      
+
       if (isLiked) {
         await storage.unlikePost(session.userId, postId);
       } else {
@@ -726,7 +790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -734,7 +798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const postId = parseInt(req.params.postId);
       const isLiked = await storage.isPostLiked(session.userId, postId);
-      
+
       res.json({ liked: isLiked });
     } catch (error) {
       console.error("Get like status error:", error);
@@ -749,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -757,7 +821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const postId = parseInt(req.params.postId);
       const isReposted = await storage.isPostReposted(session.userId, postId);
-      
+
       if (isReposted) {
         await storage.unrepostPost(session.userId, postId);
       } else {
@@ -789,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -802,7 +866,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Comment content is required" });
       }
 
-      const comment = await storage.createComment(postId, session.userId, content.trim());
+      const comment = await storage.createComment(
+        postId,
+        session.userId,
+        content.trim(),
+      );
       res.status(201).json(comment);
     } catch (error) {
       console.error("Create comment error:", error);
@@ -817,7 +885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -825,11 +893,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.getUser(session.userId);
       const subscription = await storage.getUserSubscription(session.userId);
-      
+
       res.json({
-        subscriptionStatus: user?.subscriptionStatus || 'free',
+        subscriptionStatus: user?.subscriptionStatus || "free",
         isBetaUser: user?.isBetaUser || false,
-        subscription: subscription || null
+        subscription: subscription || null,
       });
     } catch (error) {
       console.error("Error fetching subscription status:", error);
@@ -843,7 +911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -855,9 +923,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user already has a subscription
-      const existingSubscription = await storage.getUserSubscription(session.userId);
+      const existingSubscription = await storage.getUserSubscription(
+        session.userId,
+      );
       if (existingSubscription) {
-        return res.status(400).json({ message: "User already has a subscription" });
+        return res
+          .status(400)
+          .json({ message: "User already has a subscription" });
       }
 
       const trialStart = new Date();
@@ -866,18 +938,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const subscription = await storage.createSubscription({
         userId: session.userId,
-        planType: 'premium_monthly',
-        status: 'trial',
+        planType: "premium_monthly",
+        status: "trial",
         trialStart,
         trialEnd,
         founderDiscount: user.isBetaUser || false,
-        discountPercent: user.isBetaUser ? 50 : 0
+        discountPercent: user.isBetaUser ? 50 : 0,
       });
 
       // Update user subscription status
-      await storage.updateUser(session.userId, { subscriptionStatus: 'trial' });
+      await storage.updateUser(session.userId, { subscriptionStatus: "trial" });
 
-      res.status(201).json({ subscription, message: "Trial started successfully" });
+      res
+        .status(201)
+        .json({ subscription, message: "Trial started successfully" });
     } catch (error) {
       console.error("Error creating trial:", error);
       res.status(500).json({ message: "Failed to create trial" });
@@ -890,14 +964,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
 
       const { planType } = req.body; // 'premium_monthly' or 'premium_yearly'
-      
+
       const user = await storage.getUser(session.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -910,34 +984,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const currentPeriodStart = new Date();
       const currentPeriodEnd = new Date();
-      
-      if (planType === 'premium_yearly') {
+
+      if (planType === "premium_yearly") {
         currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
       } else {
         currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
       }
 
-      const updatedSubscription = await storage.updateSubscription(subscription.id, {
-        planType,
-        status: 'active',
-        currentPeriodStart,
-        currentPeriodEnd
-      });
+      const updatedSubscription = await storage.updateSubscription(
+        subscription.id,
+        {
+          planType,
+          status: "active",
+          currentPeriodStart,
+          currentPeriodEnd,
+        },
+      );
 
       // Update user subscription status
-      await storage.updateUser(session.userId, { subscriptionStatus: 'premium' });
+      await storage.updateUser(session.userId, {
+        subscriptionStatus: "premium",
+      });
 
       // Add to subscription history
       await storage.addSubscriptionHistory({
         subscriptionId: subscription.id,
-        action: subscription.planType === planType ? 'renewed' : 'upgraded',
+        action: subscription.planType === planType ? "renewed" : "upgraded",
         fromPlan: subscription.planType,
         toPlan: planType,
         effectiveDate: currentPeriodStart,
-        notes: `Upgraded to ${planType}`
+        notes: `Upgraded to ${planType}`,
       });
 
-      res.json({ subscription: updatedSubscription, message: "Subscription upgraded successfully" });
+      res.json({
+        subscription: updatedSubscription,
+        message: "Subscription upgraded successfully",
+      });
     } catch (error) {
       console.error("Error upgrading subscription:", error);
       res.status(500).json({ message: "Failed to upgrade subscription" });
@@ -950,7 +1032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -961,22 +1043,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No subscription found" });
       }
 
-      const updatedSubscription = await storage.updateSubscription(subscription.id, {
-        status: 'canceled',
-        canceledAt: new Date()
-      });
+      const updatedSubscription = await storage.updateSubscription(
+        subscription.id,
+        {
+          status: "canceled",
+          canceledAt: new Date(),
+        },
+      );
 
       // Add to subscription history
       await storage.addSubscriptionHistory({
         subscriptionId: subscription.id,
-        action: 'canceled',
+        action: "canceled",
         fromPlan: subscription.planType,
         toPlan: null,
         effectiveDate: new Date(),
-        notes: 'Subscription canceled by user'
+        notes: "Subscription canceled by user",
       });
 
-      res.json({ subscription: updatedSubscription, message: "Subscription canceled successfully" });
+      res.json({
+        subscription: updatedSubscription,
+        message: "Subscription canceled successfully",
+      });
     } catch (error) {
       console.error("Error canceling subscription:", error);
       res.status(500).json({ message: "Failed to cancel subscription" });
@@ -989,7 +1077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -1015,17 +1103,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
 
       const { contentType } = req.query;
-      
+
       const user = await storage.getUser(session.userId);
       const subscription = await storage.getUserSubscription(session.userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1037,21 +1125,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasAccess = true;
       }
       // Premium subscribers get full access
-      else if (subscription && (subscription.status === 'active' || subscription.status === 'trial')) {
+      else if (
+        subscription &&
+        (subscription.status === "active" || subscription.status === "trial")
+      ) {
         hasAccess = true;
       }
       // Free users - limited access
       else {
-        if (contentType === 'basic_module_1' || contentType === 'community_read') {
+        if (
+          contentType === "basic_module_1" ||
+          contentType === "community_read"
+        ) {
           hasAccess = true;
         }
       }
 
-      res.json({ 
-        hasAccess, 
+      res.json({
+        hasAccess,
         subscriptionStatus: user.subscriptionStatus,
         isBetaUser: user.isBetaUser,
-        subscription: subscription || null
+        subscription: subscription || null,
       });
     } catch (error) {
       console.error("Error checking content access:", error);
@@ -1066,26 +1160,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
-      
+
       // Check if user already has a trial or subscription
-      const existingSubscription = await storage.getUserSubscription(session.userId);
+      const existingSubscription = await storage.getUserSubscription(
+        session.userId,
+      );
       if (existingSubscription) {
-        return res.status(400).json({ message: "User already has a subscription or trial" });
+        return res
+          .status(400)
+          .json({ message: "User already has a subscription or trial" });
       }
-      
+
       // Create trial subscription
       const trialEndDate = new Date();
       trialEndDate.setDate(trialEndDate.getDate() + 7); // 7 days from now
-      
+
       const subscription = await storage.createSubscription({
         userId: session.userId,
-        planType: 'trial',
-        status: 'trial',
+        planType: "trial",
+        status: "trial",
         stripeCustomerId: null,
         stripeSubscriptionId: null,
         paypalSubscriptionId: null,
@@ -1095,18 +1193,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trialEnd: trialEndDate,
         canceledAt: null,
         founderDiscount: false,
-        discountPercent: 0
+        discountPercent: 0,
       });
-      
+
       // Update user subscription status
       await storage.updateUser(session.userId, {
-        subscriptionStatus: 'trial'
+        subscriptionStatus: "trial",
       });
-      
+
       res.json({
         success: true,
         subscription: subscription,
-        trialEndsAt: trialEndDate
+        trialEndsAt: trialEndDate,
       });
     } catch (error) {
       console.error("Create trial error:", error);
@@ -1121,14 +1219,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
 
       const { userId } = req.body;
-      
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -1137,7 +1235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUser(userId, {
         isBetaUser: true,
         betaStartDate: new Date(),
-        subscriptionStatus: 'premium'
+        subscriptionStatus: "premium",
       });
 
       res.json({ message: "Beta access granted successfully" });
@@ -1153,7 +1251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
@@ -1161,10 +1259,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // This would require admin role check in a real implementation
       const allUsers = Array.from((storage as any).users.values());
-      const allSubscriptions = Array.from((storage as any).subscriptions.values());
-      
-      const subscriptionData = allUsers.map(user => {
-        const subscription = allSubscriptions.find(sub => sub.userId === user.id);
+      const allSubscriptions = Array.from(
+        (storage as any).subscriptions.values(),
+      );
+
+      const subscriptionData = allUsers.map((user) => {
+        const subscription = allSubscriptions.find(
+          (sub) => sub.userId === user.id,
+        );
         return {
           user: {
             id: user.id,
@@ -1172,9 +1274,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstName: user.firstName,
             lastName: user.lastName,
             isBetaUser: user.isBetaUser,
-            subscriptionStatus: user.subscriptionStatus
+            subscriptionStatus: user.subscriptionStatus,
           },
-          subscription: subscription || null
+          subscription: subscription || null,
         };
       });
 
@@ -1191,10 +1293,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { contentType } = req.body;
 
       // Validate content type
-      const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+      const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
       if (!contentType || !ALLOWED_TYPES.includes(contentType)) {
-        return res.status(400).json({ 
-          message: "Invalid content type. Allowed types: " + ALLOWED_TYPES.join(', ')
+        return res.status(400).json({
+          message:
+            "Invalid content type. Allowed types: " + ALLOWED_TYPES.join(", "),
         });
       }
 
@@ -1203,43 +1306,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(401).json({ message: "Invalid session" });
       }
 
       // Import storage function dynamically to avoid circular dependency
-      const { getSignedPutUrl } = await import('./config/storage');
-      
+      const { getSignedPutUrl } = await import("./config/storage");
+
       // Generate signed URL
       const result = await getSignedPutUrl(contentType);
-      
+
       res.json(result);
     } catch (error: any) {
       console.error("Error generating signed URL:", error);
-      if (error.message?.includes('not configured')) {
-        return res.status(503).json({ 
-          message: "File upload service not configured. Please contact support." 
+      if (error.message?.includes("not configured")) {
+        return res.status(503).json({
+          message:
+            "File upload service not configured. Please contact support.",
         });
       }
       res.status(500).json({ message: "Failed to generate upload URL" });
     }
   });
 
+  app.post("/api/revenuecat/webhook", async (req, res) => {
+    try {
+      const event = req.body.event || {};
+      const appUserId = event.app_user_id;
+
+      if (!appUserId) {
+        console.warn("RevenueCat webhook received without app user id", {
+          event,
+        });
+        return res
+          .status(400)
+          .json({ message: "Missing app user id in webhook payload" });
+      }
+
+      const userId = Number.parseInt(String(appUserId), 10);
+      if (Number.isNaN(userId)) {
+        console.warn("RevenueCat webhook received invalid app user id", {
+          appUserId,
+        });
+        return res.status(400).json({ message: "Invalid app user id" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        console.warn("RevenueCat webhook: user not found", { userId });
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (
+        event.type === "INITIAL_PURCHASE" ||
+        event.type === "RENEWAL" ||
+        event.type === "UNCANCELLATION"
+      ) {
+        await storage.updateUser(userId, { subscriptionStatus: "premium" });
+      }
+
+      if (event.type === "CANCELLATION") {
+        await storage.updateUser(userId, { subscriptionStatus: "free" });
+      }
+
+      console.log("RevenueCat webhook: marked user as premium", { userId });
+      return res.status(200).json({ success: true, userId });
+    } catch (error) {
+      console.error("Error handling RevenueCat webhook:", error);
+      return res.status(500).json({ message: "Webhook handler error" });
+    }
+  });
+
   // Register posts module routes (database-backed system)
   app.use("/api/posts", postsRouter);
-  
+
   // Register search module routes
   app.use("/api/search", searchRouter);
-  
+
   // Register users module routes - includes blocking endpoints
   app.use("/api/users", usersRouter);
   app.use("/api/users", blockingRouter);
-  
+
   // Register notifications module routes
   app.use("/api/notifications", notificationsRouter);
-  
+
   // Register drafts module routes
   app.use("/api/drafts", draftsRouter);
 

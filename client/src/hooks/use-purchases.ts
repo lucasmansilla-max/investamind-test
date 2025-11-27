@@ -1,13 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { Capacitor } from "@capacitor/core";
 import {
   Purchases,
   LOG_LEVEL,
   CustomerInfo,
 } from "@revenuecat/purchases-capacitor";
 
-const ENTITLEMENT_NAME = "Investamind Pro"; // reemplaza por tu entitlement real
-const BACKEND_UPDATE_URL = "/api/revenuecat/notify-purchase"; // endpoint que implementes
+const ENTITLEMENT_NAME = "Investamind Pro"; // reemplaza por tu entitlement real (ver revenue cat dashboard)
 
 export function usePurchases(appUserId?: string) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -18,7 +16,7 @@ export function usePurchases(appUserId?: string) {
     try {
       await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
       const apiKey = "test_tYbKhCzhifEmkMbTJZoFaaDIPkk";
-      await Purchases.configure({ apiKey });
+      await Purchases.configure({ apiKey, appUserID: appUserId });
 
       const info = await Purchases.getCustomerInfo();
       setCustomerInfo(info.customerInfo);
@@ -27,22 +25,11 @@ export function usePurchases(appUserId?: string) {
       );
       setIsLoading(false);
 
-      console.log({ info });
-
       await Purchases.addCustomerInfoUpdateListener((updatedInfo) => {
-        console.log({ updatedInfo });
         setCustomerInfo(updatedInfo);
         setIsPaid(
           Boolean(updatedInfo?.entitlements?.active?.[ENTITLEMENT_NAME]),
         );
-
-        // if (appUserId) {
-        //   fetch(BACKEND_UPDATE_URL, {
-        //     method: "POST",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify({ appUserId, customerInfo: updatedInfo }),
-        //   }).catch((e) => console.warn("notify backend failed", e));
-        // }
       });
     } catch (e) {
       console.error("Purchases configure error", e);

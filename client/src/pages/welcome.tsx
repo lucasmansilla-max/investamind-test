@@ -1,7 +1,6 @@
 import { useLocation } from "wouter";
 import { useTranslation } from "@/lib/i18n";
 import investamindLogo from "@assets/Investamind Logo transparent.png";
-import { presentPaywall } from "@/lib/revenue-cat";
 
 export default function Welcome() {
   const [, setLocation] = useLocation();
@@ -66,7 +65,6 @@ export default function Welcome() {
         <button
           onClick={async () => {
             setLocation("/language");
-            // await presentPaywall();
           }}
           className="bg-white text-brand-dark-green font-bold py-4 px-8 rounded-full text-lg btn-hover touch-target shadow-xl border-2 border-brand-dark-green/20 animate-fadeInUp animate-glow"
           style={{ animationDelay: "0.5s" }}
