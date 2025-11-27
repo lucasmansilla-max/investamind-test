@@ -1,7 +1,6 @@
 node_modules
-android
-ios
 .env*
 .vscode
 build
 package-lock.json
+dist

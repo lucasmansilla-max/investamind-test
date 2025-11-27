@@ -60,7 +60,7 @@ export const translations = {
     },
     // Progress
     progress: {
-      yourProgress: "Your Progress", 
+      yourProgress: "Your Progress",
       learningJourney: "Learning Journey",
       completed: "Completed",
       remaining: "Remaining",
@@ -77,7 +77,7 @@ export const translations = {
         description: "New to investing, ready to learn the basics"
       },
       intermediate: {
-        title: "Intermediate", 
+        title: "Intermediate",
         description: "Some experience, want to improve strategies"
       },
       advanced: {
@@ -90,7 +90,7 @@ export const translations = {
   es: {
     // Welcome & Auth
     welcome: {
-      title: "Investamind", 
+      title: "Investamind",
       subtitle: "Domina el Trading e Inversión",
       description: "Comienza tu viaje hacia la alfabetización financiera con lecciones guiadas diseñadas para principiantes",
       getStarted: "Comenzar"
@@ -103,7 +103,7 @@ export const translations = {
       createAccount: "Crear Cuenta",
       joinText: "Únete a miles aprendiendo a invertir",
       firstName: "Nombre",
-      lastName: "Apellido", 
+      lastName: "Apellido",
       email: "Correo",
       password: "Contraseña",
       createAccountButton: "Crear Cuenta",
@@ -141,7 +141,7 @@ export const translations = {
     learning: {
       learningPath: "Ruta de Aprendizaje",
       completed: "Completado",
-      available: "Disponible", 
+      available: "Disponible",
       locked: "Bloqueado",
       start: "Comenzar",
       review: "Revisar"
@@ -149,7 +149,7 @@ export const translations = {
     // Progress
     progress: {
       yourProgress: "Tu Progreso",
-      learningJourney: "Viaje de Aprendizaje", 
+      learningJourney: "Viaje de Aprendizaje",
       completed: "Completado",
       remaining: "Restante",
       achievements: "Logros",
@@ -169,7 +169,7 @@ export const translations = {
         description: "Algo de experiencia, quiero mejorar estrategias"
       },
       advanced: {
-        title: "Avanzado", 
+        title: "Avanzado",
         description: "Inversor experimentado buscando insights avanzados"
       },
       continue: "Continuar"
@@ -179,17 +179,17 @@ export const translations = {
 
 export const useTranslation = () => {
   const language = localStorage.getItem('selectedLanguage') || 'en';
-  
+
   const t = (key: string) => {
     const keys = key.split('.');
     let value: any = translations[language as keyof typeof translations];
-    
+
     for (const k of keys) {
       value = value?.[k];
     }
-    
+
     return value || key;
   };
-  
+
   return { t, language };
 };

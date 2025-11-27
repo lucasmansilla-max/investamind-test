@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Purchases, LOG_LEVEL } from "@revenuecat/purchases-capacitor";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -24,9 +27,16 @@ import Admin from "@/pages/admin";
 import Community from "@/pages/community";
 import NotFound from "@/pages/not-found";
 
+import { usePurchases } from "./hooks/use-purchases";
+
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [location] = useLocation();
+  const {
+    isPaid,
+    isLoading: purchasesLoading,
+    restorePurchases,
+  } = usePurchases(user?.id.toString());
 
   // Initialize notifications for authenticated users
   useNotifications(isAuthenticated);
@@ -54,17 +64,14 @@ function AppContent() {
   }
 
   return (
-    <div
-      className="max-w-sm mx-auto bg-white min-h-screen relative app-container"
-      style={{ height: "100vh", maxHeight: "100vh", overflow: "hidden" }}
-    >
+    <div className="max-w-sm mx-auto bg-white min-h-[100dvh] relative app-container overflow-hidden">
       <Switch>
         {!isAuthenticated ? (
           <>
             <Route path="/signup" component={Signup} />
             <Route path="/language" component={LanguageSelection} />
             <Route path="/" component={Welcome} />
-            <Route component={Welcome} />
+            <Route path="*" component={Welcome} />
           </>
         ) : (
           <>

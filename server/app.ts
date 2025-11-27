@@ -3,28 +3,28 @@
  * Configures middleware, routes, and error handlers
  */
 
-import express, { type Request, Response, NextFunction } from 'express';
-import cookieParser from 'cookie-parser';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import pinoHttp from 'pino-http';
-import pino from 'pino';
-import { env } from './config/env';
-import { sessionMiddleware } from './middlewares/session';
-import { errorHandler, notFoundHandler } from './middlewares/error';
-import { log } from './vite';
+import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import pinoHttp from "pino-http";
+import pino from "pino";
+import { env } from "./config/env";
+import { sessionMiddleware } from "./middlewares/session";
+import { errorHandler, notFoundHandler } from "./middlewares/error";
+import { log } from "./vite";
 
 // Create pino logger
 const logger = pino({
-  level: env.NODE_ENV === 'development' ? 'debug' : 'info',
+  level: env.NODE_ENV === "development" ? "debug" : "info",
 });
 
 // Create write rate limiter (60 requests per minute)
 const writeRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 60, // 60 requests per minute
-  message: 'Too many requests, please try again later',
+  message: "Too many requests, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -33,23 +33,35 @@ export function createApp() {
   const app = express();
 
   // Trust proxy - required for rate limiting to work correctly behind Replit's proxy
-  app.set('trust proxy', 1);
+  app.set("trust proxy", 1);
 
   // Security headers
-  app.use(helmet({
-    contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: env.NODE_ENV === "production" ? undefined : false,
+    })
+  );
 
   // CORS configuration
-  app.use(cors({
-    origin: env.CLIENT_ORIGINS,
-    credentials: true,
-  }));
+  const allowedOrigins = new Set(env.CLIENT_ORIGINS || []);
+  allowedOrigins.add("capacitor://localhost");
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // allow requests with no origin (e.g., native mobile, curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.has(origin)) return callback(null, true);
+        return callback(new Error("CORS blocked origin: " + origin));
+      },
+      credentials: true,
+    })
+  );
 
   // Body parsing middleware
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
-  
+
   // Cookie parser
   app.use(cookieParser());
 
@@ -57,26 +69,30 @@ export function createApp() {
   app.use(sessionMiddleware);
 
   // Pino HTTP logger with session userId
-  app.use(pinoHttp({
-    logger,
-    customProps: (req: any) => ({
-      userId: req.cookies?.sessionId ? (global as any).__sessions?.get(req.cookies.sessionId)?.userId : undefined,
-    }),
-    serializers: {
-      req: (req) => ({
-        method: req.method,
-        url: req.url,
-        userId: (req as any).raw?.userId,
+  app.use(
+    pinoHttp({
+      logger,
+      customProps: (req: any) => ({
+        userId: req.cookies?.sessionId
+          ? (global as any).__sessions?.get(req.cookies.sessionId)?.userId
+          : undefined,
       }),
-      res: (res) => ({
-        statusCode: res.statusCode,
-      }),
-    },
-  }));
+      serializers: {
+        req: (req) => ({
+          method: req.method,
+          url: req.url,
+          userId: (req as any).raw?.userId,
+        }),
+        res: (res) => ({
+          statusCode: res.statusCode,
+        }),
+      },
+    })
+  );
 
   // Apply rate limiting to write operations (POST, PUT, PATCH, DELETE)
   app.use((req, res, next) => {
-    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
       writeRateLimiter(req, res, next);
     } else {
       next();
@@ -115,9 +131,9 @@ export function createApp() {
   });
 
   // Health check endpoint
-  app.get('/health', (req: Request, res: Response) => {
-    res.json({ 
-      status: 'ok', 
+  app.get("/health", (req: Request, res: Response) => {
+    res.json({
+      status: "ok",
       time: new Date().toISOString(),
     });
   });
