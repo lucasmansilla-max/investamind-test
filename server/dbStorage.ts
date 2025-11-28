@@ -15,6 +15,7 @@ import {
   subscriptionHistory,
   postInteractions,
   userBlocks,
+  passwordResetTokens,
   type User,
   type InsertUser,
   type LearningModule,
@@ -33,6 +34,8 @@ import {
   type InsertPayment,
   type SubscriptionHistory,
   type InsertSubscriptionHistory,
+  type InsertPasswordResetToken,
+  type PasswordResetToken,
 } from "@shared/schema";
 import { eq, and, desc, isNull, notInArray } from "drizzle-orm";
 import { IStorage } from "./storage";
@@ -378,6 +381,49 @@ export class DbStorage implements IStorage {
   async addSubscriptionHistory(insertHistory: InsertSubscriptionHistory): Promise<SubscriptionHistory> {
     const [history] = await db.insert(subscriptionHistory).values(insertHistory).returning();
     return history;
+  }
+
+  // Password reset operations
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<PasswordResetToken> {
+    const [resetToken] = await db.insert(passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+    }).returning();
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.token, token),
+        eq(passwordResetTokens.used, false)
+      ))
+      .limit(1);
+    
+    // Check if token is expired
+    if (resetToken && new Date(resetToken.expiresAt) < new Date()) {
+      return undefined;
+    }
+    
+    return resetToken;
+  }
+
+  async invalidatePasswordResetToken(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 }
 

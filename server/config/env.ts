@@ -25,6 +25,11 @@ export interface EnvConfig {
   // Application
   NODE_ENV: string;
   PORT: number;
+
+  // Mailgun configuration
+  MAILGUN_API_KEY?: string;
+  MAILGUN_DOMAIN?: string;
+  MAILGUN_FROM?: string;
 }
 
 /**
@@ -68,6 +73,10 @@ export function loadEnv(): EnvConfig {
     S3_ENDPOINT: process.env.S3_ENDPOINT,
     NODE_ENV: process.env.NODE_ENV || "development",
     PORT: parseInt(process.env.PORT || "5000", 10),
+    // Mailgun configuration
+    MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
+    MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
+    MAILGUN_FROM: process.env.MAILGUN_FROM,
   };
 }
 

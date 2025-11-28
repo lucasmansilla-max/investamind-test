@@ -15,6 +15,8 @@ import LanguageSelectionModal from "./language-selection-modal";
 import Welcome from "@/pages/welcome";
 import LanguageSelection from "@/pages/language-selection";
 import Signup from "@/pages/signup";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import Home from "@/pages/home";
 import LearningPath from "@/pages/learning-path";
 import LearningDashboard from "@/pages/learning-dashboard";
@@ -69,6 +71,8 @@ function AppContent() {
         {!isAuthenticated ? (
           <>
             <Route path="/signup" component={Signup} />
+            <Route path="/forgot-password" component={ForgotPassword} />
+            <Route path="/reset-password" component={ResetPassword} />
             <Route path="/language" component={LanguageSelection} />
             <Route path="/" component={Welcome} />
             <Route path="*" component={Welcome} />

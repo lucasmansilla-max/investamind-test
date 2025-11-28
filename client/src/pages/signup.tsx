@@ -145,6 +145,15 @@ export default function Signup() {
             {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
             )}
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setLocation("/forgot-password")}
+                className="text-sm text-brand-brown hover:text-brand-orange transition-colors underline"
+              >
+                {t("auth.forgotPassword")}
+              </button>
+            </div>
           </div>
 
           <div>

@@ -373,6 +373,16 @@ export const subscriptionHistory = pgTable('subscription_history', {
   createdAt: timestamp('created_at').defaultNow()
 });
 
+// Password Reset Tokens
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  used: boolean('used').default(false),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
 // Subscription schema types
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).pick({
   userId: true,
@@ -418,3 +428,13 @@ export type Payment = typeof payments.$inferSelect;
 
 export type InsertSubscriptionHistory = z.infer<typeof insertSubscriptionHistorySchema>;
 export type SubscriptionHistory = typeof subscriptionHistory.$inferSelect;
+
+// Password Reset Token schema types
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).pick({
+  userId: true,
+  token: true,
+  expiresAt: true,
+});
+
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
