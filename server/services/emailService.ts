@@ -84,11 +84,17 @@ async function sendEmail(options: EmailOptions): Promise<any> {
 
 /**
  * Sends a password reset email with dynamic language support
+ * @param email - User email address
+ * @param token - Password reset token
+ * @param deeplinkUrl - Deeplink URL for mobile app (investamind://)
+ * @param webUrl - Web URL as fallback (http://)
+ * @param language - User's preferred language
  */
 async function sendPasswordResetEmail(
   email: string,
   token: string,
-  resetUrl: string,
+  deeplinkUrl: string,
+  webUrl: string,
   language: EmailLanguage = "en"
 ): Promise<any> {
   const t = getEmailTranslations(language);
@@ -110,12 +116,16 @@ async function sendPasswordResetEmail(
           <p>${t.intro}</p>
           <p>${t.instruction}</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            <a href="${webUrl}" style="background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
               ${t.button}
             </a>
           </div>
           <p style="font-size: 12px; color: #666;">${t.linkText}</p>
-          <p style="font-size: 12px; color: #667eea; word-break: break-all;">${resetUrl}</p>
+          <p style="font-size: 12px; color: #667eea; word-break: break-all;">${webUrl}</p>
+          <p style="font-size: 12px; color: #666; margin-top: 15px;">
+            ${language === 'es' ? 'Si tienes la app instalada, también puedes usar este enlace directo:' : 'If you have the app installed, you can also use this direct link:'}
+          </p>
+          <p style="font-size: 12px; color: #667eea; word-break: break-all;">${deeplinkUrl}</p>
           <p style="font-size: 12px; color: #666; margin-top: 30px;">
             ${t.expiration}
           </p>
@@ -134,7 +144,12 @@ ${t.subject}
 ${t.intro}
 
 ${t.instruction}
-${resetUrl}
+
+${language === 'es' ? 'Enlace para la app móvil:' : 'Mobile app link:'}
+${deeplinkUrl}
+
+${language === 'es' ? 'Enlace web (alternativo):' : 'Web link (alternative):'}
+${webUrl}
 
 ${t.expiration}
 

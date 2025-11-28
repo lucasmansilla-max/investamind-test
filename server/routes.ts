@@ -244,8 +244,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Save token to database
         await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-        // Build reset URL
-        const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${token}`;
+        // Build reset URLs - deeplink para app móvil y web URL como fallback
+        // Usar formato con tres barras para mejor compatibilidad: investamind:///reset-password?token=xxx
+        const deeplinkUrl = `investamind:///reset-password?token=${encodeURIComponent(token)}`;
+        const webUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${encodeURIComponent(token)}`;
+        
+        // Usar deeplink como URL principal, con web URL como fallback en el email
+        const resetUrl = deeplinkUrl;
 
         // Get user's preferred language (default to 'en' if not set)
         const userLanguage = (user.selectedLanguage || "en") as "en" | "es";
@@ -253,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Send password reset email using Mailgun with user's language
         try {
           const { emailService } = await import("./services/emailService");
-          await emailService.sendPasswordResetEmail(user.email, token, resetUrl, userLanguage);
+          await emailService.sendPasswordResetEmail(user.email, token, resetUrl, webUrl, userLanguage);
         } catch (emailError: any) {
           console.error("Error enviando email de recuperación:", emailError);
           // En desarrollo, aún mostrar el link en consola si el email falla

@@ -61,7 +61,29 @@ export default function ResetPassword() {
     }
     
     setToken(tokenParam);
-  }, [setLocation, toast]);
+    
+    // Try to open app with deeplink if on mobile web browser
+    // This helps when user clicks the web link from email
+    if (typeof window !== 'undefined' && !window.location.href.includes('capacitor://')) {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        // Try to open app with deeplink
+        const deeplinkUrl = `investamind:///reset-password?token=${encodeURIComponent(tokenParam)}`;
+        
+        // Try to open the app (will fail silently if app is not installed)
+        const timeout = setTimeout(() => {
+          // If we're still here after 2 seconds, the app didn't open
+          // User can continue with web version
+        }, 2000);
+        
+        // Attempt to open app
+        window.location.href = deeplinkUrl;
+        
+        // Clean up timeout
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [setLocation, toast, t]);
 
   const {
     register,

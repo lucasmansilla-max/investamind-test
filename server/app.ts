@@ -52,6 +52,16 @@ export function createApp() {
         // allow requests with no origin (e.g., native mobile, curl)
         if (!origin) return callback(null, true);
         if (allowedOrigins.has(origin)) return callback(null, true);
+        
+        // En desarrollo, permitir conexiones desde IPs locales (para dispositivos físicos)
+        if (env.NODE_ENV === "development") {
+          // Permitir cualquier IP local (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+          const localIPPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+):\d+$/;
+          if (localIPPattern.test(origin)) {
+            return callback(null, true);
+          }
+        }
+        
         return callback(new Error("CORS blocked origin: " + origin));
       },
       credentials: true,
