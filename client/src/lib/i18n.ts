@@ -20,7 +20,40 @@ export const translations = {
       password: "Password",
       createAccountButton: "Create Account",
       demoAccount: "Try Demo Account",
-      terms: "By signing up, you agree to our Terms & Privacy Policy"
+      terms: "By signing up, you agree to our Terms & Privacy Policy",
+      forgotPassword: "Forgot Password?",
+      resetPassword: "Reset Password"
+    },
+    forgotPassword: {
+      title: "Recover Password",
+      subtitle: "Enter your email and we'll send you a link to reset your password",
+      emailLabel: "Email",
+      emailPlaceholder: "your@email.com",
+      sendButton: "Send Recovery Link",
+      sending: "Sending...",
+      emailSentTitle: "Email Sent",
+      emailSentMessage: "If an account with the email",
+      emailSentInstructions: "exists, a password reset link has been sent.",
+      emailSentCheck: "Please check your inbox and follow the instructions.",
+      backToHome: "Back to Home",
+      sendAnother: "Send Another Email",
+      noAccount: "Don't have an account? Sign up"
+    },
+    resetPassword: {
+      title: "New Password",
+      subtitle: "Enter your new password",
+      passwordLabel: "New Password",
+      confirmPasswordLabel: "Confirm Password",
+      passwordPlaceholder: "••••••••",
+      minLength: "Minimum 6 characters",
+      passwordsDontMatch: "Passwords don't match",
+      resetButton: "Reset Password",
+      resetting: "Resetting...",
+      successTitle: "Password Reset!",
+      successMessage: "Your password has been reset successfully. You can now sign in with your new password.",
+      goToSignIn: "Go to Sign In",
+      invalidToken: "Invalid or expired token",
+      loading: "Loading..."
     },
     // Main App
     home: {
@@ -108,7 +141,40 @@ export const translations = {
       password: "Contraseña",
       createAccountButton: "Crear Cuenta",
       demoAccount: "Probar Cuenta Demo",
-      terms: "Al registrarte, aceptas nuestros Términos y Política de Privacidad"
+      terms: "Al registrarte, aceptas nuestros Términos y Política de Privacidad",
+      forgotPassword: "¿Olvidaste tu contraseña?",
+      resetPassword: "Restablecer Contraseña"
+    },
+    forgotPassword: {
+      title: "Recuperar Contraseña",
+      subtitle: "Ingresa tu email y te enviaremos un link para restablecer tu contraseña",
+      emailLabel: "Email",
+      emailPlaceholder: "tu@email.com",
+      sendButton: "Enviar Link de Recuperación",
+      sending: "Enviando...",
+      emailSentTitle: "Email Enviado",
+      emailSentMessage: "Si existe una cuenta con el email",
+      emailSentInstructions: "se ha enviado un link de recuperación de contraseña.",
+      emailSentCheck: "Por favor revisa tu bandeja de entrada y sigue las instrucciones.",
+      backToHome: "Volver al inicio",
+      sendAnother: "Enviar otro email",
+      noAccount: "¿No tienes cuenta? Regístrate"
+    },
+    resetPassword: {
+      title: "Nueva Contraseña",
+      subtitle: "Ingresa tu nueva contraseña",
+      passwordLabel: "Nueva Contraseña",
+      confirmPasswordLabel: "Confirmar Contraseña",
+      passwordPlaceholder: "••••••••",
+      minLength: "Mínimo 6 caracteres",
+      passwordsDontMatch: "Las contraseñas no coinciden",
+      resetButton: "Restablecer Contraseña",
+      resetting: "Restableciendo...",
+      successTitle: "¡Contraseña Restablecida!",
+      successMessage: "Tu contraseña ha sido restablecida exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.",
+      goToSignIn: "Ir al inicio de sesión",
+      invalidToken: "Token no válido o expirado",
+      loading: "Cargando..."
     },
     // Main App
     home: {

@@ -8,6 +8,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { loadPosts, savePosts, type Post } from "./postsStore";
 import {
   parsePaginationParams,
@@ -218,6 +219,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
     res.status(200).json({ message: "Logged out successfully" });
+  });
+
+  // Password recovery endpoints
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success to prevent email enumeration attacks
+      // In production, you would send an email here
+      if (user) {
+        // Generate secure token
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
+
+        // Save token to database
+        await storage.createPasswordResetToken(user.id, token, expiresAt);
+
+        // Build reset URLs - deeplink para app móvil y web URL como fallback
+        // Usar formato con tres barras para mejor compatibilidad: investamind:///reset-password?token=xxx
+        const deeplinkUrl = `investamind:///reset-password?token=${encodeURIComponent(token)}`;
+        const webUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${encodeURIComponent(token)}`;
+        
+        // Usar deeplink como URL principal, con web URL como fallback en el email
+        const resetUrl = deeplinkUrl;
+
+        // Get user's preferred language (default to 'en' if not set)
+        const userLanguage = (user.selectedLanguage || "en") as "en" | "es";
+
+        // Send password reset email using Mailgun with user's language
+        try {
+          const { emailService } = await import("./services/emailService");
+          await emailService.sendPasswordResetEmail(user.email, token, resetUrl, webUrl, userLanguage);
+        } catch (emailError: any) {
+          console.error("Error enviando email de recuperación:", emailError);
+          // En desarrollo, aún mostrar el link en consola si el email falla
+          if (process.env.NODE_ENV === "development") {
+            console.log(`\n📧 Token de recuperación para ${email}: ${token}`);
+            console.log(`Link de recuperación: ${resetUrl}\n`);
+          }
+          // No fallar la petición si el email falla - mejor práctica de seguridad
+        }
+      }
+
+      // Always return success message (security best practice)
+      res.json({
+        message: "If an account with that email exists, a password reset link has been sent.",
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "Token is required" });
+      }
+
+      if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+        return res.status(400).json({ 
+          message: "Password is required and must be at least 6 characters long" 
+        });
+      }
+
+      // Find valid token
+      const resetToken = await storage.getPasswordResetToken(token);
+
+      if (!resetToken) {
+        return res.status(400).json({ 
+          message: "Invalid or expired token" 
+        });
+      }
+
+      // Update user password
+      await storage.updateUserPassword(resetToken.userId, newPassword);
+
+      // Invalidate token
+      await storage.invalidatePasswordResetToken(token);
+
+      res.json({
+        message: "Password has been reset successfully",
+      });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
   });
 
   app.get("/api/auth/user", async (req, res) => {

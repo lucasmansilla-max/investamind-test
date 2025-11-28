@@ -93,6 +93,12 @@ export interface IStorage {
   
   // Subscription history
   addSubscriptionHistory(history: InsertSubscriptionHistory): Promise<SubscriptionHistory>;
+  
+  // Password reset operations
+  createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<any>;
+  getPasswordResetToken(token: string): Promise<any | undefined>;
+  invalidatePasswordResetToken(token: string): Promise<void>;
+  updateUserPassword(userId: number, newPassword: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
