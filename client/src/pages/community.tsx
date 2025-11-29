@@ -10,6 +10,7 @@ import CommunityFeed from "@/community/CommunityFeedSimple";
 import BadgeProgressDashboard from "@/badges/BadgeProgressDashboard";
 import ReferralDashboard from "@/referrals/ReferralDashboard";
 import BottomNavigation from "@/bottom-navigation";
+import RoleBadge from "@/components/RoleBadge";
 
 export default function Community() {
   const [, setLocation] = useLocation();
@@ -35,6 +36,7 @@ export default function Community() {
             </div>
             
             <div className="flex items-center space-x-2">
+              {user?.role && <RoleBadge role={user.role} />}
               <Badge className="bg-brand-orange/10 text-brand-orange border-brand-orange/20">
                 TRADER
               </Badge>

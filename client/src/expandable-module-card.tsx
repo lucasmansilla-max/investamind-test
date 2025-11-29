@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChevronDown, ChevronRight, Play, CheckCircle, Lock, Clock, BookOpen, Trophy, Crown } from "lucide-react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import type { LearningModule } from "@shared/schema";
 import UpgradePrompt from "@/components/upgrade-prompts/UpgradePrompt";
+import { useHasPremiumAccess, type SubscriptionStatusData } from "@/hooks/use-subscription-status";
 
 interface Lesson {
   id: number;
@@ -31,35 +31,68 @@ interface ModuleCardProps {
     description?: string;
   };
   onLessonClick: (moduleId: number, lessonId: number) => void;
+  subscriptionData?: SubscriptionStatusData;
 }
 
-export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCardProps) {
+export default function ExpandableModuleCard({ 
+  module, 
+  onLessonClick,
+  subscriptionData: propSubscriptionData 
+}: ModuleCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [, setLocation] = useLocation();
   const progress = (module.completedLessons / module.totalLessons) * 100;
 
-  // Get subscription status
-  const { data: subscriptionData } = useQuery({
-    queryKey: ["/api/subscription/status"],
-  });
+  // Get premium access status using the hook (avoids duplicate logic)
+  const { hasPremiumAccess, subscriptionData: hookSubscriptionData } = useHasPremiumAccess();
+  
+  // Use prop data if available, otherwise use hook data
+  const subscriptionData = propSubscriptionData || hookSubscriptionData;
 
   const handleUpgradeClick = () => {
     setLocation('/pricing');
   };
 
-  const hasAccess = () => {
-    if (subscriptionData?.isBetaUser) return true;
-    
-    const status = subscriptionData?.subscriptionStatus;
-    if (status === "premium" || status === "trial") return true;
-    
-    // Allow access to first module for free users
-    if (module.id === 1) return true;
-    
-    return false;
-  };
+  // Check if user is Free (not premium/legacy/admin)
+  // Use the hook's logic instead of duplicating it
+  const isFreeUser = !hasPremiumAccess;
 
-  const isModuleLocked = module.status === "locked" || !hasAccess();
+  // Memoize access check to avoid recalculating on every render
+  const hasAccess = useMemo(() => {
+    // If user is not free, they have premium access
+    if (!isFreeUser) return true;
+    
+    // Free users only have access to first module
+    return module.id === 1;
+  }, [isFreeUser, module.id]);
+
+  // Module is locked only for Free users when they don't have access
+  // For Premium/Legacy/Admin users, "locked" status means "available" (not started)
+  const isModuleLocked = useMemo(() => {
+    // Premium users can access all modules regardless of status
+    if (!isFreeUser) return false;
+    
+    // Free users: module is locked if they don't have access (not module 1)
+    return !hasAccess;
+  }, [isFreeUser, hasAccess]);
+
+  // Get effective status considering user role
+  // For Free users: "locked" means truly locked
+  // For Premium/Legacy/Admin: "locked" means "available" (not started yet)
+  const effectiveStatus = useMemo(() => {
+    // If user is Free and module status is "locked", it's truly locked
+    if (isFreeUser && module.status === "locked") {
+      return "locked";
+    }
+    
+    // If user is Premium/Legacy/Admin and module status is "locked", it means "available" (not started)
+    if (!isFreeUser && module.status === "locked") {
+      return "available";
+    }
+    
+    // For other statuses (completed, in-progress), use as is
+    return module.status;
+  }, [isFreeUser, module.status]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -67,6 +100,8 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
         return <CheckCircle className="w-5 h-5 text-brand-light-green" />;
       case "in-progress":
         return <Play className="w-5 h-5 text-brand-orange" />;
+      case "available":
+        return <BookOpen className="w-5 h-5 text-brand-dark-green" />;
       case "locked":
         return <Lock className="w-5 h-5 text-gray-400" />;
       default:
@@ -93,6 +128,8 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
         return "bg-brand-light-green/10 text-brand-dark-green border-brand-light-green/20";
       case "in-progress":
         return "bg-brand-orange/10 text-brand-orange border-brand-orange/20";
+      case "available":
+        return "bg-brand-dark-green/10 text-brand-dark-green border-brand-dark-green/20";
       case "locked":
         return "bg-gray-100 text-gray-600 border-gray-200";
       default:
@@ -102,7 +139,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
 
   return (
     <Card className={`mb-4 transition-all duration-300 hover:shadow-lg ${
-      module.status === "locked" ? "opacity-60" : ""
+      isModuleLocked ? "opacity-60" : ""
     } ${isExpanded ? "shadow-xl" : "shadow-md"}`}>
       <CardContent className="p-0">
         {/* Module Header */}
@@ -123,11 +160,13 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
               {/* Module Icon */}
               <div className="flex-shrink-0">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                  module.status === "completed" 
+                  effectiveStatus === "completed" 
                     ? "bg-green-100" 
-                    : module.status === "in-progress" 
+                    : effectiveStatus === "in-progress" 
                     ? "bg-blue-100" 
-                    : "bg-gray-100"
+                    : effectiveStatus === "locked"
+                    ? "bg-gray-100"
+                    : "bg-blue-100"
                 }`}>
                   {module.icon}
                 </div>
@@ -137,7 +176,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2 mb-1">
                   <h3 className="font-bold text-lg text-gray-900 truncate">{module.title}</h3>
-                  {getStatusIcon(module.status)}
+                  {getStatusIcon(effectiveStatus)}
                 </div>
                 <p className="text-sm text-gray-600 mb-2">{module.subtitle}</p>
                 
@@ -151,7 +190,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
                     <Clock className="w-4 h-4" />
                     <span>{module.estimatedTime}</span>
                   </div>
-                  {module.status === "completed" && (
+                  {effectiveStatus === "completed" && (
                     <div className="flex items-center space-x-1 text-green-600">
                       <Trophy className="w-4 h-4" />
                       <span>Completed</span>
@@ -160,7 +199,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
                 </div>
 
                 {/* Progress Bar */}
-                {module.status !== "locked" && (
+                {!isModuleLocked && (
                   <div className="mt-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-gray-500">
@@ -178,7 +217,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
 
             {/* Expand/Collapse Icon */}
             <div className="flex-shrink-0 ml-4">
-              {module.status !== "locked" && (
+              {!isModuleLocked && (
                 isExpanded ? (
                   <ChevronDown className="w-5 h-5 text-gray-400" />
                 ) : (
@@ -190,10 +229,11 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
 
           {/* Status Badge */}
           <div className="mt-4">
-            <Badge className={`${getStatusColor(module.status)} border`}>
-              {module.status === "completed" && "✅ Completed"}
-              {module.status === "in-progress" && "🔄 In Progress"}
-              {module.status === "locked" && "🔒 Locked"}
+            <Badge className={`${getStatusColor(effectiveStatus)} border`}>
+              {effectiveStatus === "completed" && "✅ Completed"}
+              {effectiveStatus === "in-progress" && "🔄 In Progress"}
+              {effectiveStatus === "available" && "📚 Available"}
+              {effectiveStatus === "locked" && "🔒 Locked"}
             </Badge>
           </div>
         </div>
@@ -219,6 +259,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
               </h4>
               <div className="space-y-2">
                 {module.lessons.map((lesson, index) => (
+                  
                   <div
                     key={lesson.id}
                     className={`flex items-center p-3 rounded-lg border transition-all duration-200 ${
@@ -234,7 +275,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
                         lesson.status === "completed" 
                           ? "bg-green-500 text-white" 
                           : lesson.status === "current"
-                          ? "bg-blue-500 text-white"
+                          ? "bg-brand-orange text-white"
                           : "bg-gray-200 text-gray-600"
                       }`}>
                         {lesson.status === "completed" ? "✓" : index + 1}
@@ -274,7 +315,7 @@ export default function ExpandableModuleCard({ module, onLessonClick }: ModuleCa
                     }
                   }}
                 >
-                  {module.status === "completed" ? "Review Module" : "Continue Learning"}
+                  {effectiveStatus === "completed" ? "Review Module" : "Continue Learning"}
                   <Play className="w-4 h-4 ml-2" />
                 </Button>
               </div>

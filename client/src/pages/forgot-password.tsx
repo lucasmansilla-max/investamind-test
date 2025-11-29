@@ -96,11 +96,11 @@ export default function ForgotPassword() {
 
             <div className="space-y-4">
               <Button
-                onClick={() => setLocation("/")}
+                onClick={() => setLocation("/login")}
                 className="w-full text-white font-semibold py-4 rounded-xl text-lg transition-colors touch-target"
                 style={{ backgroundColor: '#E89047' }}
               >
-                {t("forgotPassword.backToHome")}
+                {t("login.signInButton") || "Sign In"}
               </Button>
 
               <Button
@@ -127,7 +127,7 @@ export default function ForgotPassword() {
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <button 
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation("/login")}
               className="mb-4 text-brand-brown hover:text-brand-orange transition-colors"
             >
               <i className="fas fa-arrow-left text-xl"></i>
@@ -166,10 +166,10 @@ export default function ForgotPassword() {
           
           <div className="mt-6 text-center">
             <button
-              onClick={() => setLocation("/signup")}
+              onClick={() => setLocation("/login")}
               className="text-brand-brown hover:text-brand-orange text-sm transition-colors"
             >
-              {t("forgotPassword.noAccount")}
+              {t("login.noAccount") || "Remember your password?"} <span className="underline">{t("login.signInButton") || "Sign In"}</span>
             </button>
           </div>
         </div>

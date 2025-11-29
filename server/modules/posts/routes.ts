@@ -8,6 +8,10 @@ import { z } from 'zod';
 import * as postsService from './service';
 import { asyncHandler } from '../../middlewares/error';
 import commentsRouter from '../comments/routes';
+import { isAdmin } from '../../utils/roles';
+import { db } from '../../config/db';
+import { users } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 export const postsRouter = Router();
 
@@ -18,6 +22,8 @@ postsRouter.use('/', commentsRouter);
 const createPostSchema = z.object({
   body: z.string().min(1).max(5000),
   imageUrl: z.string().url().optional(),
+  messageType: z.string().optional(),
+  postType: z.enum(['general', 'ad', 'advertisement']).optional(),
 });
 
 const updatePostSchema = z.object({
@@ -69,7 +75,7 @@ postsRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
     return;
   }
   
-  const { body, imageUrl } = validation.data;
+  const { body, imageUrl, messageType, postType } = validation.data;
   
   // Get Socket.IO instance from app
   const io = (req.app as any).io;
@@ -78,6 +84,8 @@ postsRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
     userId: session.userId,
     body,
     imageUrl,
+    messageType,
+    postType,
     io,
   });
   
@@ -255,6 +263,51 @@ postsRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   } catch (error: any) {
     if (error.message === 'Post not found') {
       res.status(404).json({ message: 'Post not found' });
+      return;
+    }
+    throw error;
+  }
+}));
+
+/**
+ * POST /posts/:id/deactivate
+ * Deactivate a post (admin only)
+ */
+postsRouter.post('/:id/deactivate', asyncHandler(async (req: Request, res: Response) => {
+  const session = getSession(req);
+  if (!session) {
+    res.status(401).json({ message: 'Authentication required' });
+    return;
+  }
+  
+  // Verify admin
+  const [user] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, session.userId))
+    .limit(1);
+  
+  if (!isAdmin(user)) {
+    res.status(403).json({ message: 'Forbidden: Admin access required' });
+    return;
+  }
+  
+  const postId = parseInt(req.params.id, 10);
+  if (isNaN(postId)) {
+    res.status(400).json({ message: 'Invalid post ID' });
+    return;
+  }
+  
+  try {
+    const post = await postsService.deactivatePost(postId, session.userId);
+    res.json({ message: 'Post deactivated successfully', post });
+  } catch (error: any) {
+    if (error.message === 'Post not found') {
+      res.status(404).json({ message: error.message });
+      return;
+    }
+    if (error.message.includes('Unauthorized')) {
+      res.status(403).json({ message: error.message });
       return;
     }
     throw error;

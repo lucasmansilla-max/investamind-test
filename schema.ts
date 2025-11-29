@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   isBetaUser: boolean("is_beta_user").default(false),
   betaStartDate: timestamp("beta_start_date"),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).default("free"), // 'free', 'trial', 'premium'
+  role: varchar("role", { length: 20 }).default("free"), // 'admin', 'free', 'premium', 'legacy'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
@@ -338,6 +339,7 @@ export const subscriptions = pgTable('subscriptions', {
   stripeCustomerId: varchar('stripe_customer_id', { length: 100 }),
   stripeSubscriptionId: varchar('stripe_subscription_id', { length: 100 }),
   paypalSubscriptionId: varchar('paypal_subscription_id', { length: 100 }),
+  revenueCatSubscriptionId: varchar('revenuecat_subscription_id', { length: 100 }),
   currentPeriodStart: timestamp('current_period_start'),
   currentPeriodEnd: timestamp('current_period_end'),
   trialStart: timestamp('trial_start'),

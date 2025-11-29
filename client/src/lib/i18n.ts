@@ -24,6 +24,18 @@ export const translations = {
       forgotPassword: "Forgot Password?",
       resetPassword: "Reset Password"
     },
+    login: {
+      title: "Sign In",
+      subtitle: "Welcome back! Please sign in to continue",
+      signInButton: "Sign In",
+      signingIn: "Signing in...",
+      successTitle: "Welcome back!",
+      successMessage: "You have successfully signed in.",
+      errorTitle: "Error signing in",
+      errorMessage: "Invalid email or password. Please try again.",
+      noAccount: "Don't have an account?",
+      createAccount: "Create Account"
+    },
     forgotPassword: {
       title: "Recover Password",
       subtitle: "Enter your email and we'll send you a link to reset your password",
@@ -144,6 +156,18 @@ export const translations = {
       terms: "Al registrarte, aceptas nuestros Términos y Política de Privacidad",
       forgotPassword: "¿Olvidaste tu contraseña?",
       resetPassword: "Restablecer Contraseña"
+    },
+    login: {
+      title: "Iniciar Sesión",
+      subtitle: "¡Bienvenido de nuevo! Por favor inicia sesión para continuar",
+      signInButton: "Iniciar Sesión",
+      signingIn: "Iniciando sesión...",
+      successTitle: "¡Bienvenido de nuevo!",
+      successMessage: "Has iniciado sesión exitosamente.",
+      errorTitle: "Error al iniciar sesión",
+      errorMessage: "Correo o contraseña inválidos. Por favor intenta de nuevo.",
+      noAccount: "¿No tienes una cuenta?",
+      createAccount: "Crear Cuenta"
     },
     forgotPassword: {
       title: "Recuperar Contraseña",

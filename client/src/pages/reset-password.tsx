@@ -160,7 +160,7 @@ export default function ResetPassword() {
             </div>
 
             <Button
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation("/login")}
               className="w-full text-white font-semibold py-4 rounded-xl text-lg transition-colors touch-target"
               style={{ backgroundColor: '#E89047' }}
             >

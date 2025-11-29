@@ -9,6 +9,7 @@ interface User {
   experienceLevel?: string;
   investmentStyle?: string;
   onboardingCompleted?: boolean;
+  role?: string;
 }
 
 interface AuthResponse {
@@ -39,6 +40,8 @@ export function useAuth() {
     retry: false,
     staleTime: 0, // Always check for fresh data
     gcTime: 0, // Don't cache in garbage collection
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // Evitar refetch cuando se enfoca la ventana
   });
   const user = authData?.user;
   const isAuthenticated = !!user && !error;

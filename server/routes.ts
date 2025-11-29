@@ -324,19 +324,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
 
-      console.log("Auth check - cookies:", req.cookies);
-      console.log("Auth check - sessionId:", req.cookies?.sessionId);
-      console.log("Active sessions:", Array.from(sessions.keys()));
-
       const sessionId = req.cookies?.sessionId;
       if (!sessionId) {
-        console.log("No session ID found in cookies");
         return res.status(401).json({ message: "Not authenticated" });
       }
 
       const session = sessions.get(sessionId);
       if (!session) {
-        console.log("Invalid session ID:", sessionId);
         return res.status(401).json({ message: "Invalid session" });
       }
 
@@ -344,8 +338,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-
-      console.log("User from storage:", user);
 
       res.json({
         user: {
@@ -360,6 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           username: user.username,
           bio: user.bio,
           avatarUrl: user.avatarUrl,
+          role: user.role || 'free',
         },
       });
     } catch (error) {
@@ -479,11 +472,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update the user with new experience level
-      console.log("Updating user with experience level:", experienceLevel);
       const updatedUser = await storage.updateUser(session.userId, {
         experienceLevel,
       });
-      console.log("Updated user:", updatedUser);
 
       res.json({
         user: {
@@ -552,6 +543,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Learning modules routes
   app.get("/api/modules", async (req, res) => {
     try {
+      const sessionId = req.cookies?.sessionId;
+      let user = null;
+      
+      // Get user if authenticated
+      if (sessionId) {
+        const session = sessions.get(sessionId);
+        if (session) {
+          user = await storage.getUser(session.userId);
+        }
+      }
+      
+      // Check if user can access courses
+      const { canAccessCourses } = await import("./utils/roles");
+      if (!canAccessCourses(user)) {
+        return res.status(403).json({ 
+          message: "Premium subscription required to access courses",
+          requiresUpgrade: true 
+        });
+      }
+      
       const lang = reqLang(req);
       const modules = await storage.getAllModules();
 
@@ -581,6 +592,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/modules/:id", async (req, res) => {
     try {
+      const sessionId = req.cookies?.sessionId;
+      let user = null;
+      
+      // Get user if authenticated
+      if (sessionId) {
+        const session = sessions.get(sessionId);
+        if (session) {
+          user = await storage.getUser(session.userId);
+        }
+      }
+      
+      // Check if user can access courses
+      const { canAccessCourses } = await import("./utils/roles");
+      if (!canAccessCourses(user)) {
+        return res.status(403).json({ 
+          message: "Premium subscription required to access courses",
+          requiresUpgrade: true 
+        });
+      }
+      
       const lang = reqLang(req);
       const moduleId = parseInt(req.params.id);
       const module = await storage.getModule(moduleId);
@@ -737,6 +768,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid session" });
       }
 
+      // Get user to check role and permissions
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user can view trading alerts
+      const { canViewTradingAlerts } = await import("./utils/roles");
+      const canViewAlerts = canViewTradingAlerts(user);
+
       // Support optional pagination - if no cursor provided, return full feed (backward compatible)
       const usePagination = !!req.query.cursor || req.query.limit;
 
@@ -759,10 +800,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         posts = await storage.getAllPosts();
       }
 
+      // Filter out trading alerts for free users
+      if (!canViewAlerts) {
+        posts = posts.filter(post => {
+          const messageType = post.messageType;
+          // Filter out posts with messageType 'signal' or 'trading_alert'
+          return messageType !== 'signal' && messageType !== 'trading_alert';
+        });
+      }
+
       // Add user information and interaction status to each post
       const postsWithUsers = await Promise.all(
         posts.map(async (post) => {
-          const user = await storage.getUser(post.userId);
+          const postUser = await storage.getUser(post.userId);
           const isLiked = await storage.isPostLiked(session.userId, post.id);
           const isReposted = await storage.isPostReposted(
             session.userId,
@@ -770,12 +820,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           return {
             ...post,
-            user: user
+            user: postUser
               ? {
-                  id: user.id,
-                  firstName: user.firstName,
-                  lastName: user.lastName,
+                  id: postUser.id,
+                  firstName: postUser.firstName,
+                  lastName: postUser.lastName,
                   currentBadge: "TRADER", // Default badge for now
+                  role: postUser.role, // Include role for RoleBadge component
                 }
               : {
                   id: post.userId,
@@ -811,10 +862,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid session" });
       }
 
-      const { content } = req.body;
+      const { content, messageType } = req.body;
 
       if (!content || !content.trim()) {
         return res.status(400).json({ message: "Content is required" });
+      }
+
+      // Check if user can create trading alerts
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify user has permission to create trading alerts
+      if (messageType === 'signal' || messageType === 'trading_alert') {
+        const { canCreateTradingAlerts } = await import("./utils/roles");
+        if (!canCreateTradingAlerts(user)) {
+          return res.status(403).json({ 
+            message: "Premium subscription required to create trading alerts",
+            requiresUpgrade: true 
+          });
+        }
       }
 
       // Use the new posts service which handles hashtag/mention parsing and storage
@@ -823,11 +891,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: session.userId,
         body: content.trim(),
         imageUrl: req.body.imageUrl,
+        messageType: messageType || null,
         io: req.app.io,
       });
 
       // Add user information to the response for backward compatibility
-      const user = await storage.getUser(session.userId);
       const postWithUser = {
         ...newPost,
         user: user
@@ -989,11 +1057,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid session" });
       }
 
-      const user = await storage.getUser(session.userId);
-      const subscription = await storage.getUserSubscription(session.userId);
+      let user = await storage.getUser(session.userId);
+      let subscription = await storage.getUserSubscription(session.userId);
+
+      // Validate and update subscription status if expired
+      if (subscription) {
+        const now = new Date();
+        const periodEnd = subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
+        const trialEnd = subscription.trialEnd ? new Date(subscription.trialEnd) : null;
+        
+        // Check if subscription has expired
+        const isExpired = 
+          (periodEnd && periodEnd < now) || 
+          (trialEnd && trialEnd < now && subscription.status === 'trial') ||
+          (subscription.status === 'past_due' && periodEnd && periodEnd < now);
+
+        // If expired, update subscription and user status
+        if (isExpired && subscription.status !== 'canceled') {
+          await storage.updateSubscription(subscription.id, {
+            status: 'canceled',
+            canceledAt: now,
+          });
+          
+          // Update user status only if not admin
+          if (user?.role !== 'admin') {
+            await storage.updateUser(session.userId, {
+              subscriptionStatus: 'free',
+              role: 'free',
+            });
+            // Refresh user data
+            const updatedUser = await storage.getUser(session.userId);
+            user = updatedUser;
+          }
+          
+          // Refresh subscription data
+          subscription = await storage.getUserSubscription(session.userId);
+        }
+      }
 
       res.json({
         subscriptionStatus: user?.subscriptionStatus || "free",
+        role: user?.role || "free",
         isBetaUser: user?.isBetaUser || false,
         subscription: subscription || null,
       });
@@ -1044,8 +1148,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         discountPercent: user.isBetaUser ? 50 : 0,
       });
 
-      // Update user subscription status
-      await storage.updateUser(session.userId, { subscriptionStatus: "trial" });
+      // Update user subscription status and sync role
+      // Solo actualizar role si el usuario no es admin (los admins mantienen su role)
+      const currentUser = await storage.getUser(session.userId);
+      const newRole = currentUser?.role === 'admin' ? 'admin' : 'premium';
+      await storage.updateUser(session.userId, { 
+        subscriptionStatus: "trial",
+        role: newRole
+      });
 
       res
         .status(201)
@@ -1099,9 +1209,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       );
 
-      // Update user subscription status
+      // Update user subscription status and sync role
+      // Solo actualizar role si el usuario no es admin (los admins mantienen su role)
+      const currentUser = await storage.getUser(session.userId);
+      const newRole = currentUser?.role === 'admin' ? 'admin' : 'premium';
       await storage.updateUser(session.userId, {
         subscriptionStatus: "premium",
+        role: newRole,
       });
 
       // Add to subscription history
@@ -1216,25 +1330,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Import role utilities
+      const { hasPremiumAccess, canAccessCourses, canViewTradingAlerts } = await import("./utils/roles");
+
       let hasAccess = false;
 
-      // Beta users get full access
-      if (user.isBetaUser) {
-        hasAccess = true;
-      }
-      // Premium subscribers get full access
-      else if (
-        subscription &&
-        (subscription.status === "active" || subscription.status === "trial")
-      ) {
-        hasAccess = true;
-      }
-      // Free users - limited access
-      else {
-        if (
+      // Check access based on role
+      if (contentType === "course" || contentType === "module" || contentType?.includes("learning")) {
+        hasAccess = canAccessCourses(user);
+      } else if (contentType === "trading_alert" || contentType === "signal") {
+        hasAccess = canViewTradingAlerts(user);
+      } else {
+        // For other content types, use premium access check
+        hasAccess = hasPremiumAccess(user);
+        
+        // Free access to basic content
+        if (!hasAccess && (
           contentType === "basic_module_1" ||
           contentType === "community_read"
-        ) {
+        )) {
           hasAccess = true;
         }
       }
@@ -1242,6 +1356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         hasAccess,
         subscriptionStatus: user.subscriptionStatus,
+        role: user.role || 'free',
         isBetaUser: user.isBetaUser,
         subscription: subscription || null,
       });
@@ -1457,23 +1572,403 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Extraer información del evento
+      const eventType = event.type;
+      const productId = event.product_id || "";
+      const entitlement = event.entitlement_id || "";
+      const revenueCatSubscriptionId = event.subscription_id || event.store_transaction_id || null;
+      
+      // Extraer fechas del evento
+      const periodStart = event.period_start_ms 
+        ? new Date(event.period_start_ms) 
+        : new Date();
+      let periodEnd = event.period_end_ms 
+        ? new Date(event.period_end_ms) 
+        : null;
+      const trialStart = event.trial_start_ms 
+        ? new Date(event.trial_start_ms) 
+        : null;
+      const trialEnd = event.trial_end_ms 
+        ? new Date(event.trial_end_ms) 
+        : null;
+      const canceledAt = event.cancellation_date_ms 
+        ? new Date(event.cancellation_date_ms) 
+        : null;
+
+      // Determinar plan type basado en product_id (necesario antes de calcular periodEnd)
+      let planType = "premium_monthly"; // default
+      if (productId.includes("yearly") || productId.includes("annual")) {
+        planType = "premium_yearly";
+      } else if (productId.includes("monthly") || productId.includes("month")) {
+        planType = "premium_monthly";
+      }
+
+      // Calcular periodEnd si es null, no existe, o es igual o anterior a periodStart
+      // También validar si la diferencia es menor a 1 día (para casos donde vengan fechas muy cercanas)
+      const originalPeriodEnd = periodEnd;
+      let shouldCalculatePeriodEnd = !periodEnd;
+      
+      if (periodEnd) {
+        const timeDiff = periodEnd.getTime() - periodStart.getTime();
+        shouldCalculatePeriodEnd = 
+          periodEnd.getTime() === periodStart.getTime() || 
+          periodEnd.getTime() <= periodStart.getTime() ||
+          timeDiff < 24 * 60 * 60 * 1000; // Menos de 1 día de diferencia
+      }
+
+      // Siempre calcular periodEnd si es necesario, asegurando que nunca sea null
+      if (shouldCalculatePeriodEnd) {
+        periodEnd = new Date(periodStart);
+        if (planType === "premium_yearly") {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+        
+      } else if (periodEnd) {
+        // periodEnd ya está definido y es válido
+      } else {
+        // Fallback: calcular periodEnd si de alguna manera aún es null
+        periodEnd = new Date(periodStart);
+        if (planType === "premium_yearly") {
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+      }
+
+      // Obtener o crear suscripción existente
+      let subscription = await storage.getUserSubscription(userId);
+      
+      // Determinar el estado de la suscripción
+      let subscriptionStatus = "active";
+      if (eventType === "CANCELLATION" || eventType === "SUBSCRIPTION_CANCELLED") {
+        subscriptionStatus = "canceled";
+      } else if (eventType === "EXPIRATION" || eventType === "SUBSCRIPTION_EXPIRED") {
+        subscriptionStatus = "past_due";
+      } else if (trialStart && trialEnd && new Date() < trialEnd) {
+        subscriptionStatus = "trial";
+      }
+
+      // Actualizar o crear suscripción
       if (
-        event.type === "INITIAL_PURCHASE" ||
-        event.type === "RENEWAL" ||
-        event.type === "UNCANCELLATION"
+        eventType === "INITIAL_PURCHASE" ||
+        eventType === "RENEWAL" ||
+        eventType === "UNCANCELLATION" ||
+        eventType === "SUBSCRIPTION_RENEWED" ||
+        eventType === "SUBSCRIPTION_UNCANCELLED"
       ) {
-        await storage.updateUser(userId, { subscriptionStatus: "premium" });
+        // Activar suscripción
+        const currentUser = await storage.getUser(userId);
+        const newRole = currentUser?.role === 'admin' ? 'admin' : 'premium';
+        
+        if (subscription) {
+          // Actualizar suscripción existente
+          subscription = await storage.updateSubscription(subscription.id, {
+            status: subscriptionStatus,
+            planType: planType,
+            revenueCatSubscriptionId: revenueCatSubscriptionId,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd!, // Ya validado arriba, nunca será null
+            trialStart: trialStart,
+            trialEnd: trialEnd,
+            canceledAt: null, // Limpiar cancelación si se reactiva
+          });
+
+          // Agregar historial
+          await storage.addSubscriptionHistory({
+            subscriptionId: subscription.id,
+            action: eventType === "INITIAL_PURCHASE" ? "created" : "renewed",
+            fromPlan: subscription.planType,
+            toPlan: planType,
+            effectiveDate: new Date(),
+            notes: `RevenueCat event: ${eventType}`,
+          });
+        } else {
+          // Crear nueva suscripción
+          subscription = await storage.createSubscription({
+            userId: userId,
+            planType: planType,
+            status: subscriptionStatus,
+            revenueCatSubscriptionId: revenueCatSubscriptionId,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd!, // Ya validado arriba, nunca será null
+            trialStart: trialStart,
+            trialEnd: trialEnd,
+            canceledAt: null,
+            founderDiscount: user.isBetaUser || false,
+            discountPercent: user.isBetaUser ? 50 : 0,
+          });
+
+          // Agregar historial
+          await storage.addSubscriptionHistory({
+            subscriptionId: subscription.id,
+            action: "created",
+            fromPlan: null,
+            toPlan: planType,
+            effectiveDate: new Date(),
+            notes: `RevenueCat initial purchase: ${eventType}`,
+          });
+        }
+
+        // Actualizar usuario
+        await storage.updateUser(userId, { 
+          subscriptionStatus: "premium",
+          role: newRole
+        });
+
+      } 
+      else if (
+        eventType === "CANCELLATION" ||
+        eventType === "SUBSCRIPTION_CANCELLED"
+      ) {
+        // Cancelar suscripción
+        const currentUser = await storage.getUser(userId);
+        const newRole = currentUser?.role === 'admin' ? 'admin' : 'free';
+        
+        if (subscription) {
+          // Actualizar suscripción existente
+          subscription = await storage.updateSubscription(subscription.id, {
+            status: "canceled",
+            canceledAt: canceledAt || new Date(),
+            currentPeriodEnd: periodEnd || subscription.currentPeriodEnd, // Mantener acceso hasta el final del período
+          });
+
+          // Agregar historial
+          await storage.addSubscriptionHistory({
+            subscriptionId: subscription.id,
+            action: "canceled",
+            fromPlan: subscription.planType,
+            toPlan: subscription.planType,
+            effectiveDate: new Date(),
+            notes: `RevenueCat cancellation: ${eventType}`,
+          });
+        }
+
+        // Nota: No actualizamos el usuario inmediatamente a "free" si la suscripción está cancelada
+        // pero aún tiene acceso hasta el final del período. El estado se actualizará cuando expire.
+        // Solo actualizamos si el período ya expiró
+        if (periodEnd && new Date(periodEnd) < new Date()) {
+          await storage.updateUser(userId, { 
+            subscriptionStatus: "free",
+            role: newRole
+          });
+        }
+
+      }
+      else if (
+        eventType === "EXPIRATION" ||
+        eventType === "SUBSCRIPTION_EXPIRED"
+      ) {
+        // Suscripción expirada
+        const currentUser = await storage.getUser(userId);
+        const newRole = currentUser?.role === 'admin' ? 'admin' : 'free';
+        
+        if (subscription) {
+          subscription = await storage.updateSubscription(subscription.id, {
+            status: "past_due",
+          });
+
+          // Agregar historial
+          await storage.addSubscriptionHistory({
+            subscriptionId: subscription.id,
+            action: "expired",
+            fromPlan: subscription.planType,
+            toPlan: subscription.planType,
+            effectiveDate: new Date(),
+            notes: `RevenueCat expiration: ${eventType}`,
+          });
+        }
+
+        // Actualizar usuario a free
+        await storage.updateUser(userId, { 
+          subscriptionStatus: "free",
+          role: newRole
+        });
+
       }
 
-      if (event.type === "CANCELLATION") {
-        await storage.updateUser(userId, { subscriptionStatus: "free" });
-      }
-
-      console.log("RevenueCat webhook: marked user as premium", { userId });
-      return res.status(200).json({ success: true, userId });
+      return res.status(200).json({ 
+        success: true, 
+        userId,
+        eventType,
+        subscriptionId: subscription?.id 
+      });
     } catch (error) {
       console.error("Error handling RevenueCat webhook:", error);
       return res.status(500).json({ message: "Webhook handler error" });
+    }
+  });
+
+  // Endpoint para sincronización manual desde el frontend después de una compra
+  app.post("/api/revenuecat/sync", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.sessionId;
+      if (!sessionId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(401).json({ message: "Invalid session" });
+      }
+
+      const userId = session.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Recibir información del CustomerInfo desde el frontend
+      const { entitlements, activeSubscriptions } = req.body;
+      
+      // Verificar si hay entitlement activo
+      const ENTITLEMENT_NAME = "Investamind Pro";
+      const entitlement = entitlements?.active?.[ENTITLEMENT_NAME];
+      const hasActiveEntitlement = !!entitlement;
+
+      if (hasActiveEntitlement) {
+        // Extraer información del entitlement
+        const productIdentifier = entitlement.productIdentifier || "";
+        
+        // Determinar plan type basado en product_id
+        let planType = "premium_monthly";
+        if (productIdentifier.includes("yearly") || productIdentifier.includes("annual")) {
+          planType = "premium_yearly";
+        } else if (productIdentifier.includes("monthly") || productIdentifier.includes("month")) {
+          planType = "premium_monthly";
+        }
+
+        // Extraer información de la suscripción
+        // RevenueCat puede usar diferentes nombres de propiedades dependiendo de la plataforma
+        const purchaseDate = entitlement.latestPurchaseDate 
+          ? new Date(entitlement.latestPurchaseDate) 
+          : entitlement.purchaseDate
+          ? new Date(entitlement.purchaseDate)
+          : new Date();
+        
+        const expirationDate = entitlement.expirationDate 
+          ? new Date(entitlement.expirationDate) 
+          : null;
+
+        const transactionIdentifier = entitlement.transactionIdentifier || entitlement.originalTransactionIdentifier || null;
+
+        // Calcular period start y end
+        const periodStart = purchaseDate;
+        let periodEnd = expirationDate;
+        
+        // Calcular periodEnd si es null, no existe, o es igual o anterior a periodStart
+        // También validar si la diferencia es menor a 1 día (para casos donde vengan fechas muy cercanas)
+        const originalPeriodEnd = periodEnd;
+        let shouldCalculatePeriodEnd = !periodEnd;
+        
+        if (periodEnd) {
+          const timeDiff = periodEnd.getTime() - periodStart.getTime();
+          shouldCalculatePeriodEnd = 
+            periodEnd.getTime() === periodStart.getTime() || 
+            periodEnd.getTime() <= periodStart.getTime() ||
+            timeDiff < 24 * 60 * 60 * 1000; // Menos de 1 día de diferencia
+        }
+
+        // Siempre calcular periodEnd si es necesario, asegurando que nunca sea null
+        if (shouldCalculatePeriodEnd) {
+          periodEnd = new Date(periodStart);
+          if (planType === "premium_yearly") {
+            periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+          } else {
+            periodEnd.setMonth(periodEnd.getMonth() + 1);
+          }
+          
+          console.log("RevenueCat sync: Calculated periodEnd", {
+            userId,
+            originalPeriodEnd: originalPeriodEnd ? originalPeriodEnd.toISOString() : null,
+            periodStart: periodStart.toISOString(),
+            calculatedPeriodEnd: periodEnd.toISOString(),
+            planType
+          });
+        } else if (periodEnd) {
+          // periodEnd ya está definido y es válido
+          console.log("RevenueCat sync: Using periodEnd from entitlement", {
+            userId,
+            periodStart: periodStart.toISOString(),
+            periodEnd: periodEnd.toISOString(),
+            planType
+          });
+        } else {
+          // Fallback: calcular periodEnd si de alguna manera aún es null
+          periodEnd = new Date(periodStart);
+          if (planType === "premium_yearly") {
+            periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+          } else {
+            periodEnd.setMonth(periodEnd.getMonth() + 1);
+          }
+        }
+        
+        // Obtener o crear suscripción
+        let subscription = await storage.getUserSubscription(userId);
+        const newRole = user.role === 'admin' ? 'admin' : 'premium';
+
+        if (subscription) {
+          // Actualizar suscripción existente
+          subscription = await storage.updateSubscription(subscription.id, {
+            status: "active",
+            planType: planType,
+            revenueCatSubscriptionId: transactionIdentifier || subscription.revenueCatSubscriptionId,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd!, // Ya validado arriba, nunca será null
+            canceledAt: null,
+          });
+        } else {
+          // Crear nueva suscripción
+          subscription = await storage.createSubscription({
+            userId: userId,
+            planType: planType,
+            status: "active",
+            revenueCatSubscriptionId: transactionIdentifier || null,
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd!, // Ya validado arriba, nunca será null
+            canceledAt: null,
+            founderDiscount: user.isBetaUser || false,
+            discountPercent: user.isBetaUser ? 50 : 0,
+          });
+
+          // Agregar historial
+          await storage.addSubscriptionHistory({
+            subscriptionId: subscription.id,
+            action: "created",
+            fromPlan: null,
+            toPlan: planType,
+            effectiveDate: new Date(),
+            notes: "Manual sync from RevenueCat after purchase",
+          });
+        }
+
+        // Actualizar usuario
+        await storage.updateUser(userId, {
+          subscriptionStatus: "premium",
+          role: newRole,
+        });
+
+
+        return res.status(200).json({
+          success: true,
+          subscription: subscription,
+          role: newRole,
+        });
+      } else {
+        // No hay entitlement activo - esto no debería pasar después de una compra exitosa
+        console.warn("RevenueCat manual sync: no active entitlement found", { 
+          userId,
+          entitlements: Object.keys(entitlements?.active || {}),
+        });
+        return res.status(400).json({ 
+          message: "No active entitlement found",
+          success: false 
+        });
+      }
+    } catch (error) {
+      console.error("Error in RevenueCat manual sync:", error);
+      return res.status(500).json({ message: "Failed to sync subscription" });
     }
   });
 
@@ -1492,6 +1987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register drafts module routes
   app.use("/api/drafts", draftsRouter);
+
 
   const httpServer = createServer(app);
   return httpServer;

@@ -62,15 +62,25 @@ export default function Welcome() {
           {t("welcome.description")}
         </p>
 
-        <button
-          onClick={async () => {
-            setLocation("/language");
-          }}
-          className="bg-white text-brand-dark-green font-bold py-4 px-8 rounded-full text-lg btn-hover touch-target shadow-xl border-2 border-brand-dark-green/20 animate-fadeInUp animate-glow"
-          style={{ animationDelay: "0.5s" }}
-        >
-          {t("welcome.getStarted")}
-        </button>
+        <div className="space-y-4 w-full max-w-sm animate-fadeInUp" style={{ animationDelay: "0.5s" }}>
+          <button
+            onClick={() => {
+              setLocation("/login");
+            }}
+            className="w-full bg-white text-brand-dark-green font-bold py-4 px-8 rounded-full text-lg btn-hover touch-target shadow-xl border-2 border-brand-dark-green/20 animate-glow"
+          >
+            {t("login.signInButton") || "Sign In"}
+          </button>
+          
+          <button
+            onClick={() => {
+              setLocation("/signup");
+            }}
+            className="w-full bg-brand-orange text-white font-bold py-4 px-8 rounded-full text-lg btn-hover touch-target shadow-xl border-2 border-brand-orange/20"
+          >
+            {t("auth.createAccount") || "Create Account"}
+          </button>
+        </div>
       </div>
     </div>
   );

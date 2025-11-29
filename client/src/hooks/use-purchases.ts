@@ -4,8 +4,55 @@ import {
   LOG_LEVEL,
   CustomerInfo,
 } from "@revenuecat/purchases-capacitor";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
-const ENTITLEMENT_NAME = "Investamind Pro"; // reemplaza por tu entitlement real (ver revenue cat dashboard)
+const ENTITLEMENT_NAME = "Investamind Pro";
+
+/**
+ * Invalidates subscription-related queries
+ */
+function invalidateSubscriptionQueries(userId?: string) {
+  queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });
+  if (userId && userId !== 'undefined') {
+    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+  }
+}
+
+/**
+ * Sincroniza el estado de RevenueCat con el backend
+ */
+async function syncWithBackend(customerInfo: CustomerInfo, userId?: string) {
+  // Solo sincronizar si hay un usuario autenticado
+  if (!userId) return;
+  
+  try {
+    const hasActiveEntitlement = Boolean(
+      customerInfo.entitlements?.active?.[ENTITLEMENT_NAME]
+    );
+
+    if (hasActiveEntitlement) {
+      // Llamar al endpoint de sincronización del backend usando apiRequest que funciona en Android
+      try {
+        const response = await apiRequest("POST", "/api/revenuecat/sync", {
+          entitlements: customerInfo.entitlements,
+          activeSubscriptions: customerInfo.activeSubscriptions,
+        });
+
+        if (response.ok) {
+          invalidateSubscriptionQueries(userId);
+        }
+      } catch (error) {
+        console.error("Error calling sync endpoint:", error);
+        invalidateSubscriptionQueries(userId);
+      }
+    } else {
+      invalidateSubscriptionQueries(userId);
+    }
+  } catch (error) {
+    console.error("Error syncing with backend:", error);
+    invalidateSubscriptionQueries(userId);
+  }
+}
 
 export function usePurchases(appUserId?: string) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -13,6 +60,12 @@ export function usePurchases(appUserId?: string) {
   const [isLoading, setIsLoading] = useState(true);
 
   const configure = useCallback(async () => {
+    // No configurar RevenueCat si no hay usuario autenticado
+    if (!appUserId) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
       const apiKey = "test_tYbKhCzhifEmkMbTJZoFaaDIPkk";
@@ -20,20 +73,33 @@ export function usePurchases(appUserId?: string) {
 
       const info = await Purchases.getCustomerInfo();
       setCustomerInfo(info.customerInfo);
-      setIsPaid(
-        Boolean(info.customerInfo.entitlements?.active?.[ENTITLEMENT_NAME]),
+      const hasActiveEntitlement = Boolean(
+        info.customerInfo.entitlements?.active?.[ENTITLEMENT_NAME]
       );
+      setIsPaid(hasActiveEntitlement);
       setIsLoading(false);
 
-      await Purchases.addCustomerInfoUpdateListener((updatedInfo) => {
+      // Sincronizar con el backend
+      if (hasActiveEntitlement) {
+        await syncWithBackend(info.customerInfo, appUserId);
+      }
+
+      await Purchases.addCustomerInfoUpdateListener(async (updatedInfo) => {
+        // Solo sincronizar si hay usuario autenticado
+        if (!appUserId) return;
+        
         setCustomerInfo(updatedInfo);
-        setIsPaid(
-          Boolean(updatedInfo?.entitlements?.active?.[ENTITLEMENT_NAME]),
+        const hasActive = Boolean(
+          updatedInfo?.entitlements?.active?.[ENTITLEMENT_NAME]
         );
+        setIsPaid(hasActive);
+        
+        // Sincronizar con el backend cuando hay cambios
+        await syncWithBackend(updatedInfo, appUserId);
       });
     } catch (e) {
-      console.error("Purchases configure error", e);
       setIsLoading(false);
+      throw e;
     }
   }, [appUserId]);
 
@@ -46,14 +112,19 @@ export function usePurchases(appUserId?: string) {
       await Purchases.restorePurchases();
       const updated = await Purchases.getCustomerInfo();
       setCustomerInfo(updated.customerInfo);
-      setIsPaid(
-        Boolean(updated.customerInfo.entitlements?.active?.[ENTITLEMENT_NAME]),
+      const hasActive = Boolean(
+        updated.customerInfo.entitlements?.active?.[ENTITLEMENT_NAME]
       );
+      setIsPaid(hasActive);
+      
+      // Sincronizar con el backend después de restaurar
+      await syncWithBackend(updated.customerInfo, appUserId);
+      
       return updated;
     } catch (e) {
       throw e;
     }
-  }, []);
+  }, [appUserId]);
 
   return { customerInfo, isPaid, isLoading, restorePurchases };
 }

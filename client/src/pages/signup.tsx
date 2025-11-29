@@ -145,15 +145,6 @@ export default function Signup() {
             {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
             )}
-            <div className="mt-2 text-right">
-              <button
-                type="button"
-                onClick={() => setLocation("/forgot-password")}
-                className="text-sm text-brand-brown hover:text-brand-orange transition-colors underline"
-              >
-                {t("auth.forgotPassword")}
-              </button>
-            </div>
           </div>
 
           <div>
@@ -180,34 +171,16 @@ export default function Signup() {
         </form>
         
         <div className="mt-6 text-center">
-          <p className="text-gray-600 text-sm mb-3">Already have an account?</p>
+          <p className="text-gray-600 text-sm mb-3">
+            {t("login.noAccount") || "Already have an account?"}
+          </p>
           <Button 
-            onClick={async () => {
-              try {
-                const response = await apiRequest("POST", "/api/auth/signin", {
-                  email: "demo@investamind.com",
-                  password: "demo123"
-                });
-                toast({
-                  title: "Welcome back!",
-                  description: "Signed in with demo account successfully.",
-                });
-                window.location.href = "/";
-              } catch (error) {
-                // If demo account doesn't exist, create it
-                signupMutation.mutate({
-                  email: "demo@investamind.com",
-                  password: "demo123",
-                  firstName: "Demo",
-                  lastName: "User"
-                });
-              }
-            }}
+            onClick={() => setLocation("/login")}
             variant="outline"
             className="w-full border-2 text-sm py-3"
             style={{ borderColor: '#5C5D47', color: '#5C5D47' }}
           >
-            Try Demo Account
+            {t("login.signInButton") || "Sign In"}
           </Button>
         </div>
         

@@ -5,14 +5,17 @@
 
 import { db } from '../../config/db';
 import { communityPosts, userBlocks, users, notifications, postHashtags, postMentions } from '@shared/schema';
-import { eq, and, isNull, desc, sql, notInArray, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, notInArray, or, ne } from 'drizzle-orm';
 import { extractHashtags, extractMentions, extractTickers } from '../../utils/parsing';
 import { encodeCursor, decodeCursor, type Cursor } from '../../utils/pagination';
+import { canViewTradingAlerts, isAdmin } from '../../utils/roles';
 
 export interface CreatePostData {
   userId: number;
   body: string;
   imageUrl?: string;
+  messageType?: string;
+  postType?: string; // 'general', 'ad', 'advertisement' for admin posts
   io?: any; // Socket.IO instance for real-time notifications
 }
 
@@ -124,7 +127,20 @@ async function upsertMentions(postId: number, mentionMap: Map<string, number>) {
  * Create a new post
  */
 export async function createPost(data: CreatePostData) {
-  const { userId, body, imageUrl, io } = data;
+  const { userId, body, imageUrl, messageType, postType, io } = data;
+  
+  // If postType is 'ad' or 'advertisement', verify user is admin
+  if (postType === 'ad' || postType === 'advertisement') {
+    const [user] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (!isAdmin(user)) {
+      throw new Error('Unauthorized: Only admins can publish ads');
+    }
+  }
   
   // Parse content
   const hashtags = extractHashtags(body);
@@ -141,6 +157,8 @@ export async function createPost(data: CreatePostData) {
       userId,
       content: body,
       imageUrl,
+      messageType: messageType || null,
+      postType: postType || 'general',
       tags: {
         hashtags,
         mentions: Array.from(mentionUserIds.entries()).map(([handle, id]) => ({ handle, userId: id })),
@@ -275,6 +293,44 @@ export async function deletePost(postId: number, userId: number) {
 }
 
 /**
+ * Deactivate a post (admin only)
+ */
+export async function deactivatePost(postId: number, adminUserId: number) {
+  // Verify admin
+  const [adminUser] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, adminUserId))
+    .limit(1);
+  
+  if (!isAdmin(adminUser)) {
+    throw new Error('Unauthorized: Admin access required');
+  }
+  
+  // Check if post exists
+  const [existing] = await db
+    .select()
+    .from(communityPosts)
+    .where(and(
+      eq(communityPosts.id, postId),
+      isNull(communityPosts.deletedAt)
+    ));
+  
+  if (!existing) {
+    throw new Error('Post not found');
+  }
+  
+  // Soft delete (deactivate)
+  const [deactivated] = await db
+    .update(communityPosts)
+    .set({ deletedAt: new Date() })
+    .where(eq(communityPosts.id, postId))
+    .returning();
+  
+  return deactivated;
+}
+
+/**
  * Get a single post by ID
  */
 export async function getPostById(postId: number, userId: number) {
@@ -325,8 +381,23 @@ export async function getPostById(postId: number, userId: number) {
 export async function getGlobalFeed(options: FeedOptions) {
   const { userId, sort = 'recent', cursor, limit = 20 } = options;
   
+  // Get user to check role
+  const [user] = await db
+    .select({
+      id: users.id,
+      role: users.role,
+      subscriptionStatus: users.subscriptionStatus,
+      isBetaUser: users.isBetaUser,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  
   // Get blocked user IDs
   const blockedUserIds = await getBlockedUserIds(userId);
+  
+  // Check if user can view trading alerts
+  const canViewAlerts = canViewTradingAlerts(user);
   
   // Decode cursor if provided
   let cursorData: Cursor | null = null;
@@ -343,6 +414,18 @@ export async function getGlobalFeed(options: FeedOptions) {
         ? notInArray(communityPosts.userId, blockedUserIds)
         : undefined,
     ].filter(Boolean);
+    
+    // Filter out trading alerts for free users
+    // Trading alerts are posts with messageType 'trading_alert' or 'signal'
+    if (!canViewAlerts) {
+      whereConditions.push(
+        or(
+          isNull(communityPosts.messageType),
+          ne(communityPosts.messageType, 'trading_alert'),
+          ne(communityPosts.messageType, 'signal')
+        )
+      );
+    }
     
     // Apply cursor
     if (cursorData) {
@@ -380,15 +463,28 @@ export async function getGlobalFeed(options: FeedOptions) {
   } else {
     // For popular/trending, we need to fetch and sort in-memory
     // This is less efficient but necessary for the scoring algorithm
+    let whereConditions = [
+      isNull(communityPosts.deletedAt),
+      blockedUserIds.length > 0 
+        ? notInArray(communityPosts.userId, blockedUserIds)
+        : undefined,
+    ].filter(Boolean);
+    
+    // Filter out trading alerts for free users
+    if (!canViewAlerts) {
+      whereConditions.push(
+        or(
+          isNull(communityPosts.messageType),
+          ne(communityPosts.messageType, 'trading_alert'),
+          ne(communityPosts.messageType, 'signal')
+        )
+      );
+    }
+    
     const allPosts = await db
       .select()
       .from(communityPosts)
-      .where(and(
-        isNull(communityPosts.deletedAt),
-        blockedUserIds.length > 0 
-          ? notInArray(communityPosts.userId, blockedUserIds)
-          : undefined
-      ));
+      .where(and(...whereConditions));
     
     // Score and sort
     const scoredPosts = allPosts

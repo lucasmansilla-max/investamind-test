@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Heart, MessageCircle, Repeat2, Bookmark, TrendingUp, TrendingDown } from "lucide-react";
 import { MessageType } from "./MessageTypeModal";
+import RoleBadge from "@/components/RoleBadge";
 
 interface PostData {
   id: number;
@@ -200,10 +201,13 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
                 </AvatarFallback>
               </Avatar>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-brand-dark-green">
                     {post.user.firstName} {post.user.lastName}
                   </span>
+                  {post.user.role && (
+                    <RoleBadge role={post.user.role} />
+                  )}
                   <Badge className="bg-brand-orange/10 text-brand-orange text-xs">
                     {post.user.currentBadge || 'TRADER'}
                   </Badge>

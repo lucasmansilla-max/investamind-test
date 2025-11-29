@@ -9,12 +9,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
-import { LanguageProvider } from "@/contexts/language-context";
+import { LanguageProvider, useLanguage } from "@/contexts/language-context";
 import LanguageSelectionModal from "./language-selection-modal";
 
 // Pages
 import Welcome from "@/pages/welcome";
 import LanguageSelection from "@/pages/language-selection";
+import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
@@ -35,14 +36,32 @@ import { usePurchases } from "./hooks/use-purchases";
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [location, setLocation] = useLocation();
+  const { isLanguageSelected } = useLanguage();
   const {
     isPaid,
     isLoading: purchasesLoading,
     restorePurchases,
-  } = usePurchases(user?.id.toString());
+  } = usePurchases(isAuthenticated ? user?.id.toString() : undefined);
 
   // Initialize notifications for authenticated users
   useNotifications(isAuthenticated);
+
+  // Redirect to language selection if user hasn't selected a language
+  useEffect(() => {
+    // Only redirect if:
+    // 1. User is not authenticated
+    // 2. Language hasn't been selected
+    // 3. Not already on language selection page
+    // 4. Not on special routes (reset-password, etc.)
+    if (!isLoading && !isAuthenticated && !isLanguageSelected) {
+      const specialRoutes = ['/reset-password', '/forgot-password'];
+      const isSpecialRoute = specialRoutes.some(route => location.startsWith(route));
+      
+      if (location !== '/language' && !isSpecialRoute) {
+        setLocation('/language');
+      }
+    }
+  }, [isLoading, isAuthenticated, isLanguageSelected, location, setLocation]);
 
   // Handle deeplinks for password reset
   useEffect(() => {
@@ -53,18 +72,22 @@ function AppContent() {
         if (result?.url) {
           handleDeeplink(result.url);
         }
-      }).catch((err) => {
-        console.log("No launch URL:", err);
+      }).catch(() => {
+        // No launch URL available
       });
 
       // Listen for app state changes (when app comes to foreground)
-      const listener = CapacitorApp.addListener("appUrlOpen", (event) => {
-        console.log("App opened with URL:", event.url);
+      let listenerHandle: any = null;
+      CapacitorApp.addListener("appUrlOpen", (event) => {
         handleDeeplink(event.url);
+      }).then((listener) => {
+        listenerHandle = listener;
       });
 
       return () => {
-        listener.remove();
+        if (listenerHandle) {
+          listenerHandle.remove();
+        }
       };
     } else {
       // Handle deeplinks in web - check if we're on reset-password page with token
@@ -73,13 +96,11 @@ function AppContent() {
       const token = params.get("token");
       if (token && location === "/reset-password") {
         // Already on the right page, no action needed
-        console.log("Reset password token detected in URL");
       }
     }
   }, [location]);
 
   const handleDeeplink = (url: string) => {
-    console.log("Processing deeplink:", url);
     try {
       // Parse deeplink URL: investamind://reset-password?token=xxx
       // or investamind:///reset-password?token=xxx
@@ -120,39 +141,24 @@ function AppContent() {
         path = "/" + path;
       }
       
-      console.log("Extracted path:", path, "Query:", queryPart);
-      
       if (path === "/reset-password" || path.includes("reset-password")) {
         // Extract token from query string
         const query = queryPart ? `?${queryPart}` : "";
         const tokenMatch = query.match(/[?&]token=([^&]+)/);
         if (tokenMatch) {
           const token = decodeURIComponent(tokenMatch[1]);
-          console.log("Navigating to reset password with token");
           setLocation(`/reset-password?token=${token}`);
-        } else {
-          console.error("No token found in deeplink");
         }
-      } else {
-        console.log("Deeplink path not recognized:", path);
       }
     } catch (error) {
-      console.error("Error parsing deeplink:", error);
       // Fallback: try to extract token manually
       const tokenMatch = url.match(/[?&]token=([^&]+)/);
       if (tokenMatch && url.includes("reset-password")) {
         const token = decodeURIComponent(tokenMatch[1]);
-        console.log("Using fallback token extraction");
         setLocation(`/reset-password?token=${token}`);
       }
     }
   };
-
-  // Debug logging to track route rendering
-  console.log("Current route:", location, "Auth state:", {
-    isAuthenticated,
-    isLoading,
-  });
 
   if (isLoading) {
     return (
@@ -175,6 +181,7 @@ function AppContent() {
       <Switch>
         {!isAuthenticated ? (
           <>
+            <Route path="/login" component={Login} />
             <Route path="/signup" component={Signup} />
             <Route path="/forgot-password" component={ForgotPassword} />
             <Route path="/reset-password" component={ResetPassword} />

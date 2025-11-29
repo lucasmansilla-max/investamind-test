@@ -22,15 +22,15 @@ export default function PremiumGate({
 }: PremiumGateProps) {
   const [, setLocation] = useLocation();
 
-  const { data: subscriptionData } = useQuery<{ subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean }>({
+  const { data: subscriptionData } = useQuery<{ subscription?: any; subscriptionStatus?: string; role?: string; isBetaUser?: boolean }>({
     queryKey: ["/api/subscription/status"],
     queryFn: async () => {
       try {
         const res = await apiRequest("GET", "/api/subscription/status");
-        return (await res.json()) as { subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean };
+        return (await res.json()) as { subscription?: any; subscriptionStatus?: string; role?: string; isBetaUser?: boolean };
       } catch (err) {
         // Return an empty object on error/unauthorized so callers can safely check properties
-        return {} as { subscription?: any; subscriptionStatus?: string; isBetaUser?: boolean };
+        return {} as { subscription?: any; subscriptionStatus?: string; role?: string; isBetaUser?: boolean };
       }
     },
     // Keep this status query stable and avoid unexpected refetches
@@ -39,12 +39,22 @@ export default function PremiumGate({
     refetchOnWindowFocus: false,
   });
 
-  // Check if user has access
+  // Check if user has access based on role
   const hasAccess = () => {
+    const role = subscriptionData?.role || 'free';
+    
+    // Admin has all access
+    if (role === 'admin') return true;
+    
+    // Legacy and premium have premium access
+    if (role === 'legacy' || role === 'premium') return true;
+    
+    // Beta users have premium access (backward compatibility)
     if (subscriptionData?.isBetaUser) return true;
     
+    // Check subscription status for backward compatibility
     const status = subscriptionData?.subscriptionStatus;
-    if (status === "premium") return true;
+    if (status === "premium" || status === "trial") return true;
     if (requiredPlan === "trial" && (status === "trial" || status === "premium")) return true;
     
     // Free access to basic content

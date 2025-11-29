@@ -16,7 +16,6 @@ export async function logout() {
     // Redirect to home page
     window.location.href = '/';
   } catch (error) {
-    console.error('Logout error:', error);
     // Even if API fails, clear session storage and redirect
     sessionStorage.removeItem('languageModalShown');
     window.location.href = '/';
