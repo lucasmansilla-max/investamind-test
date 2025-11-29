@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Lock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface MessageType {
   id: string;
@@ -76,6 +78,39 @@ interface MessageTypeModalProps {
 }
 
 export default function MessageTypeModal({ isOpen, onClose, onSelectType }: MessageTypeModalProps) {
+  // Get user role to check access
+  const { data: subscriptionData } = useQuery<{ role?: string; isBetaUser?: boolean }>({
+    queryKey: ["/api/subscription/status"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/subscription/status");
+        return (await res.json()) as { role?: string; isBetaUser?: boolean };
+      } catch (err) {
+        return { role: 'free' } as { role?: string; isBetaUser?: boolean };
+      }
+    },
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+
+  // Check if user can create trading alerts
+  const canCreateTradingAlerts = () => {
+    const role = subscriptionData?.role || 'free';
+    if (role === 'admin' || role === 'legacy' || role === 'premium') return true;
+    if (subscriptionData?.isBetaUser) return true;
+    return false;
+  };
+
+  // Filter message types based on user role
+  const availableMessageTypes = messageTypes.filter(type => {
+    // Free users cannot create trading alerts (signal)
+    if (type.id === 'signal' && !canCreateTradingAlerts()) {
+      return false;
+    }
+    return true;
+  });
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -146,11 +181,21 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
 
         {/* Message Type Grid */}
         <div className="grid grid-cols-2 gap-4 p-6 pb-6">
-          {messageTypes.map((type) => (
+          {messageTypes.map((type) => {
+            const isLocked = type.id === 'signal' && !canCreateTradingAlerts();
+            const isAvailable = availableMessageTypes.some(t => t.id === type.id);
+            
+            return (
             <div
               key={type.id}
-              onClick={() => handleSelectType(type)}
-              className="bg-white border-2 border-gray-200 rounded-2xl p-5 text-center cursor-pointer transition-all duration-300 hover:border-brand-orange hover:-translate-y-1 hover:shadow-lg min-h-[140px] flex flex-col justify-between"
+              onClick={() => !isLocked && handleSelectType(type)}
+              className={`bg-white border-2 rounded-2xl p-5 text-center transition-all duration-300 min-h-[140px] flex flex-col justify-between ${
+                isLocked 
+                  ? 'border-gray-200 opacity-60 cursor-not-allowed' 
+                  : isAvailable
+                  ? 'border-gray-200 cursor-pointer hover:border-brand-orange hover:-translate-y-1 hover:shadow-lg'
+                  : 'border-gray-200 opacity-40 cursor-not-allowed'
+              }`}
             >
               {/* Icon Container */}
               <div 
@@ -178,21 +223,25 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
               
               {/* Content */}
               <div className="flex-grow">
-                <div className="font-bold text-sm text-brand-dark-green mb-2 leading-tight">
+                <div className="font-bold text-sm text-brand-dark-green mb-2 leading-tight flex items-center justify-center gap-1">
                   {type.name}
+                  {isLocked && <Lock className="w-3 h-3 text-gray-400" />}
                 </div>
                 <div className="text-xs text-gray-600 mb-3 leading-relaxed">
-                  {type.description}
+                  {isLocked ? 'Premium required' : type.description}
                 </div>
-                <div 
-                  className="inline-block px-3 py-1 rounded-lg text-xs font-bold text-white"
-                  style={{ backgroundColor: type.color }}
-                >
-                  +{type.xpReward} XP
-                </div>
+                {!isLocked && (
+                  <div 
+                    className="inline-block px-3 py-1 rounded-lg text-xs font-bold text-white"
+                    style={{ backgroundColor: type.color }}
+                  >
+                    +{type.xpReward} XP
+                  </div>
+                )}
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
     </div>

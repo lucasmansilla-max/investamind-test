@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ExpandableModuleCard from "@/expandable-module-card";
 import BottomNavigation from "@/bottom-navigation";
+import PremiumGate from "@/components/upgrade-prompts/PremiumGate";
 import { useAuth } from "@/hooks/use-auth";
-import { Trophy, Target, Flame, Clock, BookOpen, ChevronLeft } from "lucide-react";
+import { useCanAccessCourses } from "@/hooks/use-subscription-status";
+import { useProgress } from "@/hooks/use-progress";
+import { Trophy, Target, Flame, Clock, BookOpen, ChevronLeft, Lock } from "lucide-react";
 
 // Complete curriculum data structure
 const modulesData = [
@@ -17,37 +19,37 @@ const modulesData = [
     subtitle: "7-Day Foundation Course",
     icon: "🚀",
     totalLessons: 7,
-    completedLessons: 3,
+    completedLessons: 0, // Will be calculated from real user progress
     estimatedTime: "1.5 hours",
-    status: "in-progress" as const,
+    status: "locked" as const, // Will be calculated from real user progress
     description: "Master the fundamentals of investing in just one week",
     lessons: [
       {
         id: 1,
         title: "Day 1: Stock Market Basics",
         duration: "12 minutes",
-        status: "completed" as const,
+        status: "locked" as const, // Will be calculated from real user progress
         description: "Understanding what stocks are and how markets work"
       },
       {
         id: 2,
         title: "Day 2: How Trading Works",
         duration: "10 minutes", 
-        status: "completed" as const,
+        status: "locked" as const, // Will be calculated from real user progress
         description: "The mechanics of buying and selling stocks"
       },
       {
         id: 3,
         title: "Day 3: Types of Orders",
         duration: "8 minutes",
-        status: "completed" as const,
+        status: "locked" as const, // Will be calculated from real user progress
         description: "Market orders, limit orders, and stop-loss explained"
       },
       {
         id: 4,
         title: "Day 4: Risk Management Basics",
         duration: "15 minutes",
-        status: "current" as const,
+        status: "locked" as const, // Will be calculated from real user progress
         description: "Protecting your investments and managing risk"
       },
       {
@@ -320,10 +322,111 @@ export default function LearningDashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
 
-  // Calculate overall progress
-  const totalLessons = modulesData.reduce((acc, module) => acc + module.totalLessons, 0);
-  const completedLessons = modulesData.reduce((acc, module) => acc + module.completedLessons, 0);
-  const overallProgress = (completedLessons / totalLessons) * 100;
+  // Get subscription status and check course access
+  const { canAccessCourses, subscriptionData } = useCanAccessCourses();
+  
+  // Get real user progress from database
+  const { progress: userProgress } = useProgress();
+
+  // Calculate module progress based on real user data
+  const modulesWithProgress = useMemo(() => {
+    return modulesData.map(module => {
+      // Find progress for this module
+      const moduleProgress = userProgress.find(p => p.moduleId === module.id);
+      
+      // If module is completed, all lessons are completed
+      const isModuleCompleted = moduleProgress?.completed === true;
+      
+      // Calculate completed lessons based on module completion
+      // For now, we only track module-level completion, so:
+      // - If module is completed: all lessons are completed
+      // - If module has progress but not completed: we can estimate based on quiz passed
+      // - If no progress: 0 lessons completed
+      let completedLessons = 0;
+      let moduleStatus: "completed" | "in-progress" | "locked" = "locked";
+      
+      if (isModuleCompleted) {
+        completedLessons = module.totalLessons;
+        moduleStatus = "completed";
+      } else if (moduleProgress) {
+        // Module has some progress but not completed
+        // Estimate: if quiz passed, assume ~80% progress, otherwise ~50%
+        completedLessons = moduleProgress.quizPassed 
+          ? Math.floor(module.totalLessons * 0.8)
+          : Math.floor(module.totalLessons * 0.5);
+        moduleStatus = "in-progress";
+      } else {
+        // No progress - for first module, it's available (not locked)
+        // For other modules, depends on access
+        if (module.id === 1) {
+          moduleStatus = "in-progress"; // First module is always available
+        } else {
+          moduleStatus = "locked";
+        }
+      }
+      
+      // Update lesson statuses based on progress
+      const lessons = module.lessons.map((lesson, index) => {
+        let lessonStatus: "completed" | "current" | "locked" = "locked";
+        
+        if (isModuleCompleted) {
+          // All lessons completed
+          lessonStatus = "completed";
+        } else if (moduleProgress) {
+          // Module in progress
+          if (index < completedLessons) {
+            lessonStatus = "completed";
+          } else if (index === completedLessons) {
+            lessonStatus = "current";
+          } else {
+            lessonStatus = "locked";
+          }
+        } else {
+          // No progress - first lesson of first module is current, rest are locked
+          if (module.id === 1 && index === 0) {
+            lessonStatus = "current";
+          } else {
+            lessonStatus = "locked";
+          }
+        }
+        
+        return {
+          ...lesson,
+          status: lessonStatus
+        };
+      });
+      
+      return {
+        ...module,
+        completedLessons,
+        status: moduleStatus,
+        lessons
+      };
+    });
+  }, [userProgress]);
+
+  // Filter modules based on user role
+  const availableModules = useMemo(() => {
+    if (canAccessCourses) {
+      // Premium/Legacy/Admin users can see all modules
+      // The ExpandableModuleCard will handle the "locked" status appropriately for premium users
+      return modulesWithProgress;
+    } else {
+      // Free users can only see the first module
+      return modulesWithProgress.filter(module => module.id === 1);
+    }
+  }, [canAccessCourses, modulesWithProgress]);
+
+  // Calculate overall progress (only for available modules)
+  const totalLessons = useMemo(() => {
+    return availableModules.reduce((acc, module) => acc + module.totalLessons, 0);
+  }, [availableModules]);
+
+  const completedLessons = useMemo(() => {
+    return availableModules.reduce((acc, module) => acc + module.completedLessons, 0);
+  }, [availableModules]);
+
+  const overallProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
 
   // Calculate learning streak (mock data)
   const learningStreak = 5;
@@ -365,7 +468,7 @@ export default function LearningDashboard() {
       <div className="pb-20">
         {/* Progress Overview */}
         <div className="p-4">
-          <div className="bg-gradient-to-r from-brand-dark-green to-brand-orange rounded-2xl p-6 text-white mb-6">
+          <div className="bg-gradient-to-r from-brand-dark-green to-brand-orange rounded-2xl p-6 mb-6">
             <h2 className="text-xl font-bold mb-2">Your Learning Journey</h2>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
@@ -412,48 +515,91 @@ export default function LearningDashboard() {
               Learning Modules
             </h2>
             <Badge variant="outline" className="text-brand-dark-green border-brand-dark-green/30">
-              {modulesData.length} modules
+              {availableModules.length} {availableModules.length === 1 ? 'module' : 'modules'}
+              {!canAccessCourses && ` (${modulesData.length - 1} locked)`}
             </Badge>
           </div>
 
           {/* Modules List */}
           <div className="space-y-4">
-            {modulesData.map((module) => (
+            {availableModules.map((module) => (
               <ExpandableModuleCard
                 key={module.id}
                 module={module}
                 onLessonClick={handleLessonClick}
+                subscriptionData={subscriptionData}
               />
             ))}
+
+            {/* Premium Gate for locked modules (Free users) */}
+            {!canAccessCourses && modulesWithProgress.length > 1 && (
+              <PremiumGate
+                contentType="course"
+                title="Unlock All Learning Modules"
+                description={`Upgrade to Premium to access all ${modulesWithProgress.length - 1} advanced modules and unlock your full investment education journey`}
+              >
+                <div className="space-y-4">
+                  {modulesWithProgress
+                    .filter(module => module.id !== 1)
+                    .map((module) => (
+                      <ExpandableModuleCard
+                        key={module.id}
+                        module={module}
+                        onLessonClick={handleLessonClick}
+                        subscriptionData={subscriptionData}
+                      />
+                    ))}
+                </div>
+              </PremiumGate>
+            )}
           </div>
 
           {/* Motivation Section */}
           <div className="mt-8 mb-6">
-            <Card className="bg-gradient-to-r from-brand-dark-green to-brand-orange text-white">
-              <CardContent className="p-6 text-center">
-                <Target className="w-12 h-12 mx-auto mb-4 opacity-90" />
-                <h3 className="text-xl font-bold mb-2">Keep Going!</h3>
-                <p className="opacity-90 mb-4">
-                  You're {Math.round(overallProgress)}% through your investment education journey. 
-                  Every lesson brings you closer to financial mastery.
-                </p>
-                <Button 
-                  className="bg-white text-brand-dark-green hover:bg-brand-light-green font-semibold"
-                  onClick={() => {
-                    // Find next available lesson
-                    const currentModule = modulesData.find(m => m.status === "in-progress");
-                    if (currentModule) {
-                      const nextLesson = currentModule.lessons.find(l => l.status === "current");
-                      if (nextLesson) {
-                        handleLessonClick(currentModule.id, nextLesson.id);
+            {canAccessCourses ? (
+              <Card className="bg-gradient-to-r from-brand-dark-green to-brand-orange text-white">
+                <CardContent className="p-6 text-center">
+                  <Target className="w-12 h-12 mx-auto mb-4 opacity-90" />
+                  <h3 className="text-xl font-bold mb-2">Keep Going!</h3>
+                  <p className="opacity-90 mb-4">
+                    You're {Math.round(overallProgress)}% through your investment education journey. 
+                    Every lesson brings you closer to financial mastery.
+                  </p>
+                  <Button 
+                    className="bg-white text-brand-dark-green hover:bg-brand-light-green font-semibold"
+                    onClick={() => {
+                      // Find next available lesson
+                      const currentModule = availableModules.find(m => m.status === "in-progress");
+                      if (currentModule) {
+                        const nextLesson = currentModule.lessons.find(l => l.status === "current");
+                        if (nextLesson) {
+                          handleLessonClick(currentModule.id, nextLesson.id);
+                        }
                       }
-                    }
-                  }}
-                >
-                  Continue Learning
-                </Button>
-              </CardContent>
-            </Card>
+                    }}
+                  >
+                    Continue Learning
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="bg-gradient-to-r from-brand-dark-green to-brand-orange text-white">
+                <CardContent className="p-6 text-center">
+                  <Target className="w-12 h-12 mx-auto mb-4 opacity-90" />
+                  <h3 className="text-xl font-bold mb-2">Unlock Your Full Potential!</h3>
+                  <p className="opacity-90 mb-4">
+                    You've completed {Math.round(overallProgress)}% of the free module. 
+                    Upgrade to Premium to access all {modulesWithProgress.length} modules and unlock your complete investment education.
+                  </p>
+                  <Button 
+                    className="bg-white text-brand-dark-green hover:bg-brand-light-green font-semibold"
+                    onClick={() => setLocation("/pricing")}
+                  >
+                    Upgrade to Premium
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

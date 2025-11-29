@@ -13,8 +13,6 @@ export function useNotifications(isAuthenticated: boolean) {
         try {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
-            console.log('Notification permission granted');
-            
             // Schedule a demo notification
             setTimeout(() => {
               if (document.visibilityState === 'visible') {
@@ -33,7 +31,7 @@ export function useNotifications(isAuthenticated: boolean) {
             }, 10000); // Demo notification after 10 seconds
           }
         } catch (error) {
-          console.error('Error requesting notification permission:', error);
+          // Silently fail - notification permission is optional
         }
       }
     };
@@ -50,8 +48,7 @@ export function useNotifications(isAuthenticated: boolean) {
 
     const scheduleWeeklyReminder = () => {
       // In a real app, this would be handled by the service worker
-      // For demo purposes, we'll just log it
-      console.log('Weekly reminder scheduled');
+      // Service worker handles the actual scheduling
     };
 
     scheduleWeeklyReminder();
