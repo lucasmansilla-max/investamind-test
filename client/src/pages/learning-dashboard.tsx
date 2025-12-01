@@ -7,7 +7,7 @@ import ExpandableModuleCard from "@/expandable-module-card";
 import BottomNavigation from "@/bottom-navigation";
 import PremiumGate from "@/components/upgrade-prompts/PremiumGate";
 import { useAuth } from "@/hooks/use-auth";
-import { useCanAccessCourses } from "@/hooks/use-subscription-status";
+import { useHasPremiumAccess } from "@/hooks/use-subscription-status";
 import { useProgress } from "@/hooks/use-progress";
 import { Trophy, Target, Flame, Clock, BookOpen, ChevronLeft, Lock } from "lucide-react";
 
@@ -323,7 +323,7 @@ export default function LearningDashboard() {
   const { user } = useAuth();
 
   // Get subscription status and check course access
-  const { canAccessCourses, subscriptionData } = useCanAccessCourses();
+  const { hasPremiumAccess, subscriptionData } = useHasPremiumAccess();
   
   // Get real user progress from database
   const { progress: userProgress } = useProgress();
@@ -407,7 +407,7 @@ export default function LearningDashboard() {
 
   // Filter modules based on user role
   const availableModules = useMemo(() => {
-    if (canAccessCourses) {
+    if (hasPremiumAccess) {
       // Premium/Legacy/Admin users can see all modules
       // The ExpandableModuleCard will handle the "locked" status appropriately for premium users
       return modulesWithProgress;
@@ -415,7 +415,7 @@ export default function LearningDashboard() {
       // Free users can only see the first module
       return modulesWithProgress.filter(module => module.id === 1);
     }
-  }, [canAccessCourses, modulesWithProgress]);
+  }, [hasPremiumAccess, modulesWithProgress]);
 
   // Calculate overall progress (only for available modules)
   const totalLessons = useMemo(() => {
@@ -516,7 +516,7 @@ export default function LearningDashboard() {
             </h2>
             <Badge variant="outline" className="text-brand-dark-green border-brand-dark-green/30">
               {availableModules.length} {availableModules.length === 1 ? 'module' : 'modules'}
-              {!canAccessCourses && ` (${modulesData.length - 1} locked)`}
+              {!hasPremiumAccess && ` (${modulesData.length - 1} locked)`}
             </Badge>
           </div>
 
@@ -532,7 +532,7 @@ export default function LearningDashboard() {
             ))}
 
             {/* Premium Gate for locked modules (Free users) */}
-            {!canAccessCourses && modulesWithProgress.length > 1 && (
+            {!hasPremiumAccess && modulesWithProgress.length > 1 && (
               <PremiumGate
                 contentType="course"
                 title="Unlock All Learning Modules"
@@ -556,7 +556,7 @@ export default function LearningDashboard() {
 
           {/* Motivation Section */}
           <div className="mt-8 mb-6">
-            {canAccessCourses ? (
+            {hasPremiumAccess ? (
               <Card className="bg-gradient-to-r from-brand-dark-green to-brand-orange text-white">
                 <CardContent className="p-6 text-center">
                   <Target className="w-12 h-12 mx-auto mb-4 opacity-90" />

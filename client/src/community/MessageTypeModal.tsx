@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { X, Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/language-context";
 
 interface MessageType {
   id: string;
@@ -68,8 +69,21 @@ const messageTypes: MessageType[] = [
     description: 'General trading discussion',
     xpReward: 8,
     color: '#795548'
+  },
+  {
+    id: 'advertisement',
+    name: 'Advertisement',
+    icon: '📢',
+    description: 'Publish an official announcement (Admin only)',
+    xpReward: 0,
+    color: '#DC2626'
   }
 ];
+
+// Helper function to get translated description
+const getTranslatedDescription = (typeId: string, t: (key: string) => string): string => {
+  return t(`community.messageTypeDescriptions.${typeId}`) || '';
+};
 
 interface MessageTypeModalProps {
   isOpen: boolean;
@@ -78,6 +92,7 @@ interface MessageTypeModalProps {
 }
 
 export default function MessageTypeModal({ isOpen, onClose, onSelectType }: MessageTypeModalProps) {
+  const { t } = useLanguage();
   // Get user role to check access
   const { data: subscriptionData } = useQuery<{ role?: string; isBetaUser?: boolean }>({
     queryKey: ["/api/subscription/status"],
@@ -102,10 +117,20 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
     return false;
   };
 
+  // Check if user is admin
+  const isAdmin = () => {
+    const role = subscriptionData?.role || 'free';
+    return role === 'admin';
+  };
+
   // Filter message types based on user role
   const availableMessageTypes = messageTypes.filter(type => {
     // Free users cannot create trading alerts (signal)
     if (type.id === 'signal' && !canCreateTradingAlerts()) {
+      return false;
+    }
+    // Only admins can create advertisements
+    if (type.id === 'advertisement' && !isAdmin()) {
       return false;
     }
     return true;
@@ -169,7 +194,7 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
         {/* Header */}
         <div className="sticky top-0 bg-white px-6 py-5 border-b border-gray-100 rounded-t-3xl z-10">
           <h2 className="text-xl font-bold text-center text-brand-dark-green">
-            Choose Post Type
+            {t("community.choosePostTypeTitle")}
           </h2>
           <button
             onClick={onClose}
@@ -182,7 +207,8 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
         {/* Message Type Grid */}
         <div className="grid grid-cols-2 gap-4 p-6 pb-6">
           {messageTypes.map((type) => {
-            const isLocked = type.id === 'signal' && !canCreateTradingAlerts();
+            const isLocked = (type.id === 'signal' && !canCreateTradingAlerts()) || 
+                           (type.id === 'advertisement' && !isAdmin());
             const isAvailable = availableMessageTypes.some(t => t.id === type.id);
             
             return (
@@ -224,11 +250,11 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
               {/* Content */}
               <div className="flex-grow">
                 <div className="font-bold text-sm text-brand-dark-green mb-2 leading-tight flex items-center justify-center gap-1">
-                  {type.name}
+                  {t(`community.messageTypes.${type.id}`) || type.name}
                   {isLocked && <Lock className="w-3 h-3 text-gray-400" />}
                 </div>
                 <div className="text-xs text-gray-600 mb-3 leading-relaxed">
-                  {isLocked ? 'Premium required' : type.description}
+                  {isLocked ? t("community.premiumRequired") : getTranslatedDescription(type.id, t)}
                 </div>
                 {!isLocked && (
                   <div 

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { X, Tag } from "lucide-react";
 import { MessageType } from "./MessageTypeModal";
+import { useLanguage } from "@/contexts/language-context";
 
 interface PostCreationFormProps {
   isOpen: boolean;
@@ -26,10 +27,10 @@ interface FormField {
   readonly?: boolean;
 }
 
-const getFormFields = (messageType: string): Record<string, FormField> => {
+const getFormFields = (messageType: string, t: (key: string) => string): Record<string, FormField> => {
   const baseFields = {
-    content: { type: 'textarea', placeholder: 'Share your thoughts...', required: true },
-    tags: { type: 'tag-input', placeholder: 'Add relevant tags...' }
+    content: { type: 'textarea', placeholder: t('community.shareThoughts'), required: true },
+    tags: { type: 'tag-input', placeholder: t('community.addTags') }
   };
 
   const typeSpecificFields: Record<string, Record<string, FormField>> = {
@@ -57,11 +58,12 @@ const getFormFields = (messageType: string): Record<string, FormField> => {
 };
 
 export default function PostCreationForm({ isOpen, onClose, messageType, onSubmit }: PostCreationFormProps) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
 
-  const formFields = getFormFields(messageType.id);
+  const formFields = getFormFields(messageType.id, t);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -82,6 +84,7 @@ export default function PostCreationForm({ isOpen, onClose, messageType, onSubmi
     const postData = {
       ...formData,
       messageType: messageType.id,
+      postType: messageType.id === 'advertisement' ? 'ad' : 'general',
       tags,
       xpReward: messageType.xpReward
     };
@@ -103,7 +106,7 @@ export default function PostCreationForm({ isOpen, onClose, messageType, onSubmi
     if (fieldName === 'tags') {
       return (
         <div key={fieldName} className="space-y-2">
-          <Label className="text-brand-dark-green">Tags</Label>
+          <Label className="text-brand-dark-green">{t("community.tags")}</Label>
           <div className="flex flex-wrap gap-2 mb-2">
             {tags.map((tag) => (
               <Badge
@@ -147,7 +150,7 @@ export default function PostCreationForm({ isOpen, onClose, messageType, onSubmi
       return (
         <div key={fieldName} className="space-y-2">
           <Label className="text-brand-dark-green">
-            Content {config.required && <span className="text-red-500">*</span>}
+            {t("community.content")} {config.required && <span className="text-red-500">*</span>}
           </Label>
           <Textarea
             value={formData[fieldName] || ''}
@@ -228,10 +231,17 @@ export default function PostCreationForm({ isOpen, onClose, messageType, onSubmi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-xl text-brand-dark-green">
             <span className="text-2xl">{messageType.icon}</span>
-            Create {messageType.name}
-            <Badge className="bg-brand-light-green/20 text-brand-dark-green">
-              +{messageType.xpReward} XP
-            </Badge>
+            {t("community.createPostType").replace("{type}", t(`community.messageTypes.${messageType.id}`) || messageType.name)}
+            {messageType.xpReward > 0 && (
+              <Badge className="bg-brand-light-green/20 text-brand-dark-green">
+                +{messageType.xpReward} XP
+              </Badge>
+            )}
+            {messageType.id === 'advertisement' && (
+              <Badge className="bg-red-100 text-red-800 border-red-200">
+                {t("community.adminOnly")}
+              </Badge>
+            )}
           </DialogTitle>
           <Button
             variant="ghost"
@@ -255,14 +265,14 @@ export default function PostCreationForm({ isOpen, onClose, messageType, onSubmi
             onClick={onClose}
             className="flex-1"
           >
-            Cancel
+            {t("community.cancel")}
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!isFormValid()}
             className="flex-1 bg-brand-orange hover:bg-brand-orange/80 text-white"
           >
-            Post
+            {t("community.post")}
           </Button>
         </div>
       </DialogContent>

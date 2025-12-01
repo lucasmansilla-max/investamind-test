@@ -331,6 +331,47 @@ export async function deactivatePost(postId: number, adminUserId: number) {
 }
 
 /**
+ * Reactivate a post (admin only)
+ */
+export async function reactivatePost(postId: number, adminUserId: number) {
+  // Verify admin
+  const [adminUser] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, adminUserId))
+    .limit(1);
+  
+  if (!isAdmin(adminUser)) {
+    throw new Error('Unauthorized: Admin access required');
+  }
+  
+  // Check if post exists (including deactivated ones)
+  const [existing] = await db
+    .select()
+    .from(communityPosts)
+    .where(eq(communityPosts.id, postId))
+    .limit(1);
+  
+  if (!existing) {
+    throw new Error('Post not found');
+  }
+  
+  // Check if post is already active
+  if (!existing.deletedAt) {
+    throw new Error('Post is already active');
+  }
+  
+  // Reactivate (remove deletedAt)
+  const [reactivated] = await db
+    .update(communityPosts)
+    .set({ deletedAt: null })
+    .where(eq(communityPosts.id, postId))
+    .returning();
+  
+  return reactivated;
+}
+
+/**
  * Get a single post by ID
  */
 export async function getPostById(postId: number, userId: number) {

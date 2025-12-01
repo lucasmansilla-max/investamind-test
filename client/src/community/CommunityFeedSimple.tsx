@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/language-context";
 import { 
   Heart, 
   MessageCircle, 
@@ -87,6 +88,7 @@ interface PostData {
 
 export default function CommunityFeedSimple() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [newPost, setNewPost] = useState("");
   const [expandedPosts, setExpandedPosts] = useState<Set<number>>(new Set());
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
@@ -110,7 +112,7 @@ export default function CommunityFeedSimple() {
         method: "POST",
         body: JSON.stringify({
           content: postData.content,
-          postType: postData.messageType || 'general',
+          postType: postData.postType || postData.messageType || 'general',
           messageType: postData.messageType,
           ticker: postData.ticker,
           signalData: postData.signalType ? {
@@ -148,8 +150,8 @@ export default function CommunityFeedSimple() {
       setShowPostForm(false);
       setSelectedMessageType(null);
       toast({
-        title: "Post created successfully!",
-        description: `Your ${selectedMessageType?.name} has been shared with the community`,
+        title: t("community.postCreatedSuccess"),
+        description: t("community.postShared").replace("{type}", selectedMessageType?.name || ""),
       });
     },
   });
@@ -220,15 +222,125 @@ export default function CommunityFeedSimple() {
     setIsCommentModalOpen(true);
   };
 
+  // Deactivate post mutation (admin only)
+  const deactivateMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const response = await fetch(`/api/community/posts/${postId}/deactivate`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      // Check if response is successful
+      if (!response.ok) {
+        // Try to parse error as JSON, fallback to text
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `${response.status}: ${response.statusText}`);
+        } catch (parseError) {
+          // If JSON parsing fails, it might be HTML or plain text
+          const text = await response.text();
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+      }
+      
+      // Response is OK (200), try to parse as JSON
+      try {
+        return await response.json();
+      } catch (parseError) {
+        // If JSON parsing fails even with 200 OK, log warning but don't fail
+        console.warn("Received non-JSON response from API with 200 OK");
+        return { success: true };
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
+      toast({
+        title: t("community.postDeactivated"),
+        description: t("community.postDeactivatedSuccess"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("community.error"),
+        description: error.message || t("community.deactivateError"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeactivate = (postId: number) => {
+    if (confirm(t("community.confirmDeactivate"))) {
+      deactivateMutation.mutate(postId);
+    }
+  };
+
+  // Reactivate post mutation (admin only)
+  const reactivateMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const response = await fetch(`/api/community/posts/${postId}/reactivate`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      // Check if response is successful
+      if (!response.ok) {
+        // Try to parse error as JSON, fallback to text
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `${response.status}: ${response.statusText}`);
+        } catch (parseError) {
+          // If JSON parsing fails, it might be HTML or plain text
+          const text = await response.text();
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        }
+      }
+      
+      // Response is OK (200), try to parse as JSON
+      try {
+        return await response.json();
+      } catch (parseError) {
+        // If JSON parsing fails even with 200 OK, log warning but don't fail
+        console.warn("Received non-JSON response from API with 200 OK");
+        return { success: true };
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community/posts"] });
+      toast({
+        title: t("community.postReactivated"),
+        description: t("community.postReactivatedSuccess"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("community.error"),
+        description: error.message || t("community.reactivateError"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleReactivate = (postId: number) => {
+    if (confirm(t("community.confirmReactivate"))) {
+      reactivateMutation.mutate(postId);
+    }
+  };
+
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return "Just now";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 60) return t("community.justNow");
+    if (diffInSeconds < 3600) return t("community.minutesAgo").replace("{minutes}", Math.floor(diffInSeconds / 60).toString());
+    if (diffInSeconds < 86400) return t("community.hoursAgo").replace("{hours}", Math.floor(diffInSeconds / 3600).toString());
+    return t("community.daysAgo").replace("{days}", Math.floor(diffInSeconds / 86400).toString());
   };
 
   const getBadgeColor = (badge: string) => {
@@ -251,10 +363,10 @@ export default function CommunityFeedSimple() {
               <Plus className="w-8 h-8 text-brand-dark-green" />
             </div>
             <h3 className="text-lg font-semibold text-brand-dark-green mb-2">
-              Share with the Community
+              {t("community.shareWithCommunity")}
             </h3>
             <p className="text-gray-600 mb-4">
-              Choose your post type to share market insights, predictions, or ask questions
+              {t("community.choosePostType")}
             </p>
             <Button 
               onClick={handleStartPostCreation}
@@ -262,7 +374,7 @@ export default function CommunityFeedSimple() {
               className="bg-brand-orange hover:bg-brand-orange/80 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create Post
+              {t("community.createPost")}
             </Button>
           </div>
         </CardContent>
@@ -270,10 +382,10 @@ export default function CommunityFeedSimple() {
 
       {/* Posts Feed */}
       {isLoading ? (
-        <div className="text-center py-8">Loading posts...</div>
+        <div className="text-center py-8">{t("community.loadingPosts")}</div>
       ) : posts.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          No posts yet. Be the first to share something!
+          {t("community.noPostsYet")}
         </div>
       ) : (
         <div className="space-y-4">
@@ -285,6 +397,8 @@ export default function CommunityFeedSimple() {
               onComment={handleCommentClick}
               onRepost={handleRepost}
               onBookmark={() => {}}
+              onDeactivate={handleDeactivate}
+              onReactivate={handleReactivate}
             />
           ))}
         </div>

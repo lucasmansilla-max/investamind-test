@@ -14,6 +14,7 @@ import {
   parsePaginationParams,
   buildPaginationResult,
 } from "./utils/pagination";
+import { desc, isNotNull } from "drizzle-orm";
 import postsRouter from "./modules/posts/routes";
 import searchRouter from "./modules/search/routes";
 import usersRouter from "./modules/users/routes";
@@ -781,6 +782,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Support optional pagination - if no cursor provided, return full feed (backward compatible)
       const usePagination = !!req.query.cursor || req.query.limit;
 
+      // Check if user is admin first
+      const { isAdmin } = await import("./utils/roles");
+      const userIsAdmin = isAdmin(user);
+
       let posts;
       if (usePagination) {
         const { cursor, limit } = parsePaginationParams(req.query);
@@ -798,6 +803,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Full feed mode - get all posts (legacy behavior)
         posts = await storage.getAllPosts();
+        
+        // If admin, also get deactivated posts
+        if (userIsAdmin) {
+          const { db } = await import("./config/db");
+          const { communityPosts } = await import("@shared/schema");
+          
+          const deactivatedPosts = await db
+            .select()
+            .from(communityPosts)
+            .where(isNotNull(communityPosts.deletedAt))
+            .orderBy(desc(communityPosts.createdAt));
+          
+          // Combine active and deactivated posts, sort by createdAt
+          posts = [...posts, ...deactivatedPosts].sort((a, b) => {
+            const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bDate - aDate;
+          });
+        }
       }
 
       // Filter out trading alerts for free users
@@ -807,6 +831,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Filter out posts with messageType 'signal' or 'trading_alert'
           return messageType !== 'signal' && messageType !== 'trading_alert';
         });
+      }
+
+      // Filter out deactivated posts for non-admin users
+      // Admins will see all posts including deactivated ones (they need to see them to reactivate)
+      if (!userIsAdmin) {
+        posts = posts.filter(post => !post.deletedAt);
       }
 
       // Add user information and interaction status to each post
@@ -820,6 +850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           return {
             ...post,
+            deletedAt: post.deletedAt ? post.deletedAt.toISOString() : null, // Include deletedAt for admin visibility
             user: postUser
               ? {
                   id: postUser.id,
@@ -885,6 +916,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Check if user is admin and wants to create an ad
+      const postType = req.body.postType || 'general';
+      if (postType === 'ad' || postType === 'advertisement') {
+        const { isAdmin } = await import("./utils/roles");
+        if (!isAdmin(user)) {
+          return res.status(403).json({ 
+            message: "Only admins can publish ads",
+          });
+        }
+      }
+
       // Use the new posts service which handles hashtag/mention parsing and storage
       const { createPost } = await import("./modules/posts/service.js");
       const newPost = await createPost({
@@ -892,6 +934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body: content.trim(),
         imageUrl: req.body.imageUrl,
         messageType: messageType || null,
+        postType: postType,
         io: req.app.io,
       });
 
@@ -1041,6 +1084,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Create comment error:", error);
       res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Deactivate post (admin only) - MUST be before other /api/community/posts routes
+  app.post("/api/community/posts/:postId/deactivate", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.sessionId;
+      if (!sessionId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(401).json({ message: "Invalid session" });
+      }
+
+      // Verify admin
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { isAdmin } = await import("./utils/roles");
+      if (!isAdmin(user)) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const postId = parseInt(req.params.postId, 10);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+
+      // Use the posts service to deactivate
+      const { deactivatePost } = await import("./modules/posts/service.js");
+      const deactivatedPost = await deactivatePost(postId, session.userId);
+
+      return res.status(200).json({ message: "Post deactivated successfully", post: deactivatedPost });
+    } catch (error: any) {
+      console.error("Deactivate post error:", error);
+      if (error.message === "Post not found") {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message && error.message.includes("Unauthorized")) {
+        return res.status(403).json({ message: error.message });
+      }
+      return res.status(500).json({ message: "Server error", error: error.message });
+    }
+  });
+
+  // Reactivate post (admin only)
+  app.post("/api/community/posts/:postId/reactivate", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.sessionId;
+      if (!sessionId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(401).json({ message: "Invalid session" });
+      }
+
+      // Verify admin
+      const user = await storage.getUser(session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { isAdmin } = await import("./utils/roles");
+      if (!isAdmin(user)) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const postId = parseInt(req.params.postId, 10);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+
+      // Use the posts service to reactivate
+      const { reactivatePost } = await import("./modules/posts/service.js");
+      const reactivatedPost = await reactivatePost(postId, session.userId);
+
+      return res.status(200).json({ message: "Post reactivated successfully", post: reactivatedPost });
+    } catch (error: any) {
+      console.error("Reactivate post error:", error);
+      if (error.message === "Post not found") {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message === "Post is already active") {
+        return res.status(400).json({ message: error.message });
+      }
+      if (error.message && error.message.includes("Unauthorized")) {
+        return res.status(403).json({ message: error.message });
+      }
+      return res.status(500).json({ message: "Server error", error: error.message });
     }
   });
 

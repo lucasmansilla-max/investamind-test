@@ -3,9 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Repeat2, Bookmark, TrendingUp, TrendingDown } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, Bookmark, TrendingUp, TrendingDown, ShieldOff, ShieldCheck } from "lucide-react";
 import { MessageType } from "./MessageTypeModal";
 import RoleBadge from "@/components/RoleBadge";
+import { useSubscriptionStatus } from "@/hooks/use-subscription-status";
+import { useLanguage } from "@/contexts/language-context";
 
 interface PostData {
   id: number;
@@ -45,6 +47,7 @@ interface PostData {
   isLiked?: boolean;
   isReposted?: boolean;
   isBookmarked?: boolean;
+  deletedAt?: string | null;
 }
 
 interface EnhancedPostCardProps {
@@ -53,6 +56,8 @@ interface EnhancedPostCardProps {
   onComment: (postId: number) => void;
   onRepost: (postId: number) => void;
   onBookmark: (postId: number) => void;
+  onDeactivate?: (postId: number) => void;
+  onReactivate?: (postId: number) => void;
 }
 
 const messageTypeConfig = {
@@ -73,10 +78,14 @@ const getUserLevel = (xp: number = 0) => {
   return { level: 1, title: 'Rookie Trader', badge: '🔰' };
 };
 
-export default function EnhancedPostCard({ post, onLike, onComment, onRepost, onBookmark }: EnhancedPostCardProps) {
+export default function EnhancedPostCard({ post, onLike, onComment, onRepost, onBookmark, onDeactivate, onReactivate }: EnhancedPostCardProps) {
+  const { t } = useLanguage();
   const [showFullContent, setShowFullContent] = useState(false);
   const typeConfig = messageTypeConfig[post.messageType as keyof typeof messageTypeConfig] || messageTypeConfig.general;
   const userLevel = getUserLevel(post.user.xp);
+  const { data: subscriptionData } = useSubscriptionStatus();
+  const isAdmin = subscriptionData?.role === 'admin';
+  const isDeactivated = !!post.deletedAt;
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -86,9 +95,9 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffMins < 60) return t("community.minutesAgo").replace("{minutes}", diffMins.toString());
+    if (diffHours < 24) return t("community.hoursAgo").replace("{hours}", diffHours.toString());
+    return t("community.daysAgo").replace("{days}", diffDays.toString());
   };
 
   const TradingSignalDisplay = ({ data }: { data: any }) => (
@@ -188,8 +197,15 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
   );
 
   return (
-    <Card className={`mb-4 transition-all duration-200 hover:shadow-lg border-l-4`} 
+    <Card className={`mb-4 transition-all duration-200 hover:shadow-lg border-l-4 relative ${isDeactivated ? 'opacity-60' : ''}`} 
           style={{ borderLeftColor: typeConfig.color }}>
+      {isDeactivated && (
+        <div className="absolute inset-0 bg-gray-100/50 backdrop-blur-sm z-10 rounded-lg flex items-center justify-center">
+          <Badge className="bg-red-500 text-white px-4 py-2 text-sm font-semibold">
+            🚫 {t("community.deactivated")}
+          </Badge>
+        </div>
+      )}
       <CardContent className="p-0">
         {/* Header */}
         <div className="p-4 pb-0">
@@ -230,6 +246,36 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
                 +{post.xpReward} XP
               </Badge>
             )}
+            {post.postType === 'ad' || post.postType === 'advertisement' ? (
+              <Badge className="bg-red-100 text-red-800 border-red-200">
+                📢 {t("community.announcement")}
+              </Badge>
+            ) : null}
+            {isAdmin && (
+              <>
+                {isDeactivated && onReactivate ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onReactivate(post.id)}
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title={t("community.reactivatePost")}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                  </Button>
+                ) : !isDeactivated && onDeactivate ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDeactivate(post.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    title={t("community.deactivatePost")}
+                  >
+                    <ShieldOff className="w-4 h-4" />
+                  </Button>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
 
@@ -243,7 +289,7 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
               onClick={() => setShowFullContent(!showFullContent)}
               className="text-brand-orange text-sm mt-1 hover:underline"
             >
-              {showFullContent ? 'Show less' : 'Show more'}
+              {showFullContent ? t("community.showLess") : t("community.showMore")}
             </button>
           )}
 
