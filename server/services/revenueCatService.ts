@@ -20,6 +20,10 @@ export interface RevenueCatEvent {
   trial_start_ms?: number;
   trial_end_ms?: number;
   cancellation_date_ms?: number;
+  id?: string;
+  event_id?: string;
+  eventId?: string;
+  [key: string]: any; // Allow additional fields
 }
 
 export interface RevenueCatSyncData {
@@ -90,6 +94,42 @@ function validatePeriodEnd(
  * - "Bearer <token>" (if configured with "Bearer" prefix)
  * - "<token>" (if configured without "Bearer" prefix)
  */
+/**
+ * Extract or generate a unique event_id from RevenueCat webhook event
+ * Tries to extract from common fields, otherwise generates a deterministic hash
+ */
+export function extractEventId(event: RevenueCatEvent | Record<string, any>): string | null {
+  // Try to extract from common event_id fields
+  if (event.id) {
+    return String(event.id);
+  }
+  if (event.event_id) {
+    return String(event.event_id);
+  }
+  if (event.eventId) {
+    return String(event.eventId);
+  }
+
+  // Generate a deterministic event_id based on unique fields
+  // Use combination of fields that uniquely identify the event
+  const uniqueFields = {
+    type: event.type,
+    app_user_id: event.app_user_id,
+    subscription_id: event.subscription_id,
+    store_transaction_id: event.store_transaction_id,
+    period_start_ms: event.period_start_ms,
+    period_end_ms: event.period_end_ms,
+    timestamp: event.period_start_ms || Date.now(),
+  };
+
+  // Create a hash of the unique fields to generate a deterministic ID
+  const hashInput = JSON.stringify(uniqueFields);
+  const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
+  
+  // Return first 32 characters as event_id (shorter, still unique enough)
+  return hash.substring(0, 32);
+}
+
 export function validateWebhookSignature(
   payload: string,
   receivedToken: string
