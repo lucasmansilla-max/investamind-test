@@ -173,7 +173,8 @@ router.get(
       });
     }
 
-    const { q, limit } = req.query as { q: string; limit: number };
+    const q = req.query.q as string;
+    const limit = req.query.limit as number | undefined;
 
     const results = await suggestUsers(q, limit || 10);
 

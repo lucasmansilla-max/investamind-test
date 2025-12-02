@@ -27,11 +27,12 @@ export function errorHandler(
   // Handle Zod validation errors
   if (err instanceof ZodError) {
     const formatted = formatValidationErrors(err);
-    return res.status(400).json({
+    res.status(400).json({
       message: formatted.message,
       errors: formatted.errors,
       code: 'VALIDATION_ERROR',
     });
+    return;
   }
 
   // Don't log errors in test environment

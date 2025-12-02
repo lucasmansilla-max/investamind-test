@@ -132,7 +132,7 @@ export async function createPost(data: CreatePostData) {
   // If postType is 'ad' or 'advertisement', verify user is admin
   if (postType === 'ad' || postType === 'advertisement') {
     const [user] = await db
-      .select({ role: users.role })
+      .select({ id: users.id, role: users.role })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
@@ -298,7 +298,7 @@ export async function deletePost(postId: number, userId: number) {
 export async function deactivatePost(postId: number, adminUserId: number) {
   // Verify admin
   const [adminUser] = await db
-    .select({ role: users.role })
+    .select({ id: users.id, role: users.role })
     .from(users)
     .where(eq(users.id, adminUserId))
     .limit(1);
@@ -336,7 +336,7 @@ export async function deactivatePost(postId: number, adminUserId: number) {
 export async function reactivatePost(postId: number, adminUserId: number) {
   // Verify admin
   const [adminUser] = await db
-    .select({ role: users.role })
+    .select({ id: users.id, role: users.role })
     .from(users)
     .where(eq(users.id, adminUserId))
     .limit(1);

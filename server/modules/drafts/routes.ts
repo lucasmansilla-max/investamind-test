@@ -151,7 +151,7 @@ router.post(
       const post = await publishDraft({
         id,
         userId: session.userId,
-        io: req.app.io,
+        io: (req.app as any).io,
       });
 
       res.status(201).json(post);

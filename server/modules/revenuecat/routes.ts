@@ -166,7 +166,7 @@ router.post(
             await storage.updateWebhookLogStatus(
               existingLog.id,
               "received",
-              null
+              undefined
             ).catch(() => {
               // Silently fail log update
             });

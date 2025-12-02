@@ -71,7 +71,7 @@ export async function updateDraft({
     throw new Error("Draft not found");
   }
 
-  const updates: Partial<InsertDraft> = {
+  const updates: Partial<Pick<Draft, 'body' | 'imageUrl' | 'updatedAt'>> = {
     updatedAt: new Date(),
   };
 

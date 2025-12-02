@@ -45,7 +45,7 @@ router.post(
       userId: session.userId,
       body,
       parentCommentId,
-      io: req.app.io,
+      io: (req.app as any).io,
     });
 
     res.status(201).json(comment);

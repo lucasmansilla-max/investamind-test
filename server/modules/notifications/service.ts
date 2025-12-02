@@ -40,7 +40,7 @@ export async function getNotifications(params: GetNotificationsParams) {
   // Apply cursor-based pagination
   // For unread-first sorting, we need to handle the cursor differently
   if (cursor) {
-    const decoded = decodeCursor(cursor);
+    const decoded = decodeCursor(cursor) as any;
     if (decoded) {
       const cursorCreatedAt = decoded.createdAt;
       const cursorId = parseInt(decoded.id, 10);
@@ -123,7 +123,7 @@ export async function getNotifications(params: GetNotificationsParams) {
         createdAt: data[data.length - 1].createdAt!.toISOString(),
         id: data[data.length - 1].id.toString(),
         read: data[data.length - 1].read ? 'true' : 'false',
-      })
+      } as any)
     : null;
 
   return {

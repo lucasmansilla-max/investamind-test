@@ -79,7 +79,7 @@ export async function createComment({
     await db
       .update(communityPosts)
       .set({
-        commentsCount: post.commentsCount + 1,
+        commentsCount: (post.commentsCount ?? 0) + 1,
       })
       .where(eq(communityPosts.id, postId));
   } else {
@@ -195,9 +195,13 @@ export async function getComments({
   const hasMore = comments.length > limit;
   const items = hasMore ? comments.slice(0, limit) : comments;
 
-  const nextCursor = hasMore
-    ? `${items[items.length - 1].id}_${items[items.length - 1].createdAt.getTime()}`
-    : null;
+  let nextCursor: string | null = null;
+  if (hasMore && items.length > 0) {
+    const lastItem = items[items.length - 1];
+    if (lastItem.createdAt) {
+      nextCursor = `${lastItem.id}_${lastItem.createdAt.getTime()}`;
+    }
+  }
 
   // Fetch users for all comments
   const userIds = items.map((c) => c.userId);
