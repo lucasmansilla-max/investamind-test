@@ -442,19 +442,22 @@ export class DbStorage implements IStorage {
       if (!webhookLog) {
         throw new Error("Failed to create webhook log: no record returned");
       }
-      console.log("Webhook log created successfully:", {
+      console.log("[Webhook Log] Created successfully:", {
         id: webhookLog.id,
         source: webhookLog.source,
+        eventId: webhookLog.eventId || 'no-event-id',
         eventType: webhookLog.eventType,
         status: webhookLog.status,
       });
       return webhookLog;
     } catch (error: any) {
-      console.error("Error creating webhook log in database:", {
+      console.error("[Webhook Log] Error creating in database:", {
         error: error.message,
+        errorCode: error.code,
         stack: error.stack,
         logData: {
           source: log.source,
+          eventId: log.eventId || 'no-event-id',
           eventType: log.eventType,
           userId: log.userId,
           status: log.status,
@@ -503,6 +506,17 @@ export class DbStorage implements IStorage {
     return log;
   }
 
+  async getWebhookLogByEventId(source: string, eventId: string): Promise<WebhookLog | undefined> {
+    if (!eventId) {
+      return undefined;
+    }
+    const [log] = await db
+      .select()
+      .from(webhookLogs)
+      .where(and(eq(webhookLogs.source, source), eq(webhookLogs.eventId, eventId)));
+    return log;
+  }
+
   async updateWebhookLogStatus(
     id: number, 
     status: string, 
@@ -529,15 +543,17 @@ export class DbStorage implements IStorage {
       if (!result || result.length === 0) {
         console.warn("Webhook log update did not affect any rows:", { id, status });
       } else {
-        console.log("Webhook log updated successfully:", {
+        console.log("[Webhook Log] Updated successfully:", {
           id: result[0].id,
+          eventId: result[0].eventId || 'no-event-id',
           status: result[0].status,
           subscriptionId: result[0].subscriptionId,
         });
       }
     } catch (error: any) {
-      console.error("Error updating webhook log status in database:", {
+      console.error("[Webhook Log] Error updating status in database:", {
         error: error.message,
+        errorCode: error.code,
         stack: error.stack,
         id,
         status,

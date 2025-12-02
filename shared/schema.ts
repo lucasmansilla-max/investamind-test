@@ -443,14 +443,17 @@ export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSc
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
 // Webhook Logs Table
+// Note: Unique constraint on (source, event_id) is enforced via partial unique index in migration
+// This allows multiple NULL event_id values while preventing duplicates when event_id is present
 export const webhookLogs = pgTable('webhook_logs', {
   id: serial('id').primaryKey(),
   source: varchar('source', { length: 50 }).notNull(), // 'revenuecat', 'stripe', etc.
+  eventId: varchar('event_id', { length: 255 }), // Unique identifier for the event to prevent duplicates
   eventType: varchar('event_type', { length: 100 }).notNull(),
   payload: jsonb('payload').notNull().$type<Record<string, any>>(),
   userId: integer('user_id').references(() => users.id),
   subscriptionId: integer('subscription_id').references(() => subscriptions.id),
-  status: varchar('status', { length: 20 }).notNull().default('received'), // 'received', 'processed', 'failed', 'invalid'
+  status: varchar('status', { length: 20 }).notNull().default('received'), // 'received', 'processed', 'failed', 'invalid', 'duplicate'
   errorMessage: text('error_message'),
   processedAt: timestamp('processed_at'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -458,6 +461,7 @@ export const webhookLogs = pgTable('webhook_logs', {
 
 export const insertWebhookLogSchema = createInsertSchema(webhookLogs).pick({
   source: true,
+  eventId: true,
   eventType: true,
   payload: true,
   userId: true,

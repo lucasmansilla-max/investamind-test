@@ -104,6 +104,7 @@ export interface IStorage {
   createWebhookLog(log: any): Promise<any>;
   getWebhookLogs(params: { limit?: number; offset?: number; source?: string; status?: string }): Promise<any[]>;
   getWebhookLog(id: number): Promise<any | undefined>;
+  getWebhookLogByEventId(source: string, eventId: string): Promise<any | undefined>;
   updateWebhookLogStatus(id: number, status: string, errorMessage?: string, subscriptionId?: number): Promise<void>;
 }
 
@@ -922,6 +923,7 @@ export class MemStorage implements IStorage {
     const webhookLog = {
       id: this.currentWebhookLogId++,
       source: log.source,
+      eventId: log.eventId || null,
       eventType: log.eventType,
       payload: log.payload,
       userId: log.userId || null,
@@ -964,6 +966,14 @@ export class MemStorage implements IStorage {
 
   async getWebhookLog(id: number): Promise<any | undefined> {
     return this.webhookLogs.get(id);
+  }
+
+  async getWebhookLogByEventId(source: string, eventId: string): Promise<any | undefined> {
+    if (!eventId) {
+      return undefined;
+    }
+    const logs = Array.from(this.webhookLogs.values());
+    return logs.find(log => log.source === source && log.eventId === eventId);
   }
 
   async updateWebhookLogStatus(

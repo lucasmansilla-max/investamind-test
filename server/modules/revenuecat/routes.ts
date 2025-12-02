@@ -9,6 +9,7 @@ import {
   handleWebhookEvent,
   syncFromCustomerInfo,
   validateWebhookSignature,
+  extractEventId,
 } from "../../services/revenueCatService";
 import { storage } from "../../storage";
 
@@ -60,6 +61,7 @@ router.post(
     // Helper function to safely create webhook log
     const createLogSafely = async (logData: {
       source: string;
+      eventId: string | null;
       eventType: string;
       payload: any;
       userId: number | null;
@@ -70,6 +72,7 @@ router.post(
       try {
         return await storage.createWebhookLog({
           source: logData.source,
+          eventId: logData.eventId,
           eventType: logData.eventType,
           payload: logData.payload,
           userId: logData.userId,
@@ -79,11 +82,23 @@ router.post(
           processedAt: null,
         });
       } catch (logError: any) {
+        // Check if error is due to duplicate event_id
+        if (logError?.code === '23505' || logError?.message?.includes('unique constraint') || logError?.message?.includes('duplicate')) {
+          // If it's a duplicate, try to find the existing log
+          if (logData.eventId) {
+            const existingLog = await storage.getWebhookLogByEventId(logData.source, logData.eventId);
+            if (existingLog) {
+              return existingLog;
+            }
+          }
+        }
+        
         // Try to create a minimal log entry as fallback
         try {
           const errorMessage = logError?.message || String(logError) || "Unknown error";
           return await storage.createWebhookLog({
             source: logData.source,
+            eventId: logData.eventId,
             eventType: logData.eventType || "UNKNOWN",
             payload: { 
               error: "Failed to save original payload", 
@@ -110,21 +125,79 @@ router.post(
         }
       }
       
-      // Create webhook log entry before processing
-      // This ensures we always have a record of incoming webhooks
-      webhookLog = await createLogSafely({
-        source: "revenuecat",
-        eventType: eventType,
-        payload: event,
-        userId: userId || null,
-        subscriptionId: null,
-        status: isValid ? "received" : "invalid",
-        errorMessage: isValid ? null : "Invalid webhook signature",
-      });
+      // Extract or generate event_id for duplicate prevention
+      const eventId = extractEventId(event);
       
-      // If signature is invalid, update log and return error
+      // Check if this event has already been processed (idempotency check)
+      if (eventId) {
+        const existingLog = await storage.getWebhookLogByEventId("revenuecat", eventId);
+        
+        if (existingLog) {
+          // Event already exists - check its status
+          if (existingLog.status === "processed") {
+            // Event was already successfully processed - return success without reprocessing
+            console.log(`[Webhook] Duplicate event detected and already processed: ${eventId}`, {
+              eventId,
+              eventType,
+              existingLogId: existingLog.id,
+              existingStatus: existingLog.status,
+            });
+            
+            return res.status(200).json({
+              success: true,
+              message: "Event already processed",
+              eventId: eventId,
+              userId: existingLog.userId || userId,
+              eventType: event.type,
+              subscriptionId: existingLog.subscriptionId || null,
+            });
+          } else if (existingLog.status === "received" || existingLog.status === "failed") {
+            // Event exists but wasn't processed successfully - use existing log and retry processing
+            console.log(`[Webhook] Retrying event processing: ${eventId}`, {
+              eventId,
+              eventType,
+              existingLogId: existingLog.id,
+              existingStatus: existingLog.status,
+            });
+            
+            webhookLog = existingLog;
+            
+            // Update log status to indicate retry
+            await storage.updateWebhookLogStatus(
+              existingLog.id,
+              "received",
+              null
+            ).catch(() => {
+              // Silently fail log update
+            });
+          } else if (existingLog.status === "duplicate") {
+            // Already marked as duplicate - return success without processing
+            return res.status(200).json({
+              success: true,
+              message: "Event already received (duplicate)",
+              eventId: eventId,
+              userId: existingLog.userId || userId,
+              eventType: event.type,
+            });
+          }
+        }
+      }
+      
+      // Validate webhook signature
       if (!isValid) {
-        if (webhookLog) {
+        // Create log for invalid signature
+        if (!webhookLog) {
+          webhookLog = await createLogSafely({
+            source: "revenuecat",
+            eventId: eventId,
+            eventType: eventType,
+            payload: event,
+            userId: userId || null,
+            subscriptionId: null,
+            status: "invalid",
+            errorMessage: "Invalid webhook signature",
+          });
+        } else {
           await storage.updateWebhookLogStatus(
             webhookLog.id,
             "invalid",
@@ -133,9 +206,24 @@ router.post(
             // Silently fail log update - webhook already rejected
           });
         }
+        
         return res.status(401).json({
           success: false,
           error: "Invalid webhook signature",
+        });
+      }
+      
+      // Create webhook log entry if it doesn't exist yet
+      if (!webhookLog) {
+        webhookLog = await createLogSafely({
+          source: "revenuecat",
+          eventId: eventId,
+          eventType: eventType,
+          payload: event,
+          userId: userId || null,
+          subscriptionId: null,
+          status: "received",
+          errorMessage: null,
         });
       }
       
@@ -155,13 +243,63 @@ router.post(
         });
       }
       
+      console.log(`[Webhook] Event processed successfully: ${eventId || 'no-id'}`, {
+        eventId,
+        eventType,
+        userId: result.userId,
+        subscriptionId: result.subscriptionId,
+      });
+      
       res.status(200).json({
         success: true,
         userId: result.userId,
         eventType: event.type,
         subscriptionId: result.subscriptionId,
+        eventId: eventId,
       });
     } catch (error: any) {
+      // Check if error is due to duplicate event_id constraint
+      if (error?.code === '23505' || error?.message?.includes('unique constraint') || error?.message?.includes('duplicate')) {
+        console.warn(`[Webhook] Duplicate event_id detected during processing: ${extractEventId(event)}`, {
+          eventId: extractEventId(event),
+          eventType,
+          error: error.message,
+        });
+        
+        // Try to find the existing log
+        const eventId = extractEventId(event);
+        if (eventId) {
+          const existingLog = await storage.getWebhookLogByEventId("revenuecat", eventId);
+          
+          if (existingLog) {
+            if (existingLog.status === "processed") {
+              // Already processed - return success
+              return res.status(200).json({
+                success: true,
+                message: "Event already processed",
+                eventId: eventId,
+                userId: existingLog.userId || userId,
+                eventType: event.type,
+                subscriptionId: existingLog.subscriptionId || null,
+              });
+            } else {
+              // Update existing log to duplicate status
+              await storage.updateWebhookLogStatus(
+                existingLog.id,
+                "duplicate",
+                "Duplicate event received during processing"
+              ).catch(() => {});
+            }
+          }
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: "Duplicate event detected",
+          eventId: eventId,
+        });
+      }
+      
       // Update log with error status
       if (webhookLog) {
         await storage.updateWebhookLogStatus(
@@ -175,6 +313,7 @@ router.post(
         // If we don't have a log, try to create one for the error
         await createLogSafely({
           source: "revenuecat",
+          eventId: extractEventId(event),
           eventType: eventType,
           payload: event,
           userId: userId || null,
@@ -186,7 +325,13 @@ router.post(
         });
       }
       
-      console.error("Error processing RevenueCat webhook:", error);
+      console.error("[Webhook] Error processing RevenueCat webhook:", {
+        error: error.message,
+        stack: error.stack,
+        eventId: extractEventId(event),
+        eventType,
+      });
+      
       res.status(500).json({
         success: false,
         error: error.message || "Failed to process webhook",
