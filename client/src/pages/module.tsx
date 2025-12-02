@@ -16,10 +16,26 @@ export default function Module() {
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [quizCompleted, setQuizCompleted] = useState(false);
 
-  const moduleId = parseInt(params.id);
+  const moduleId = params?.id ? parseInt(params.id) : NaN;
+
+  // Redirect if invalid module ID
+  if (isNaN(moduleId) || moduleId <= 0) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="text-center">
+          <i className="fas fa-exclamation-circle text-4xl text-gray-400 mb-4"></i>
+          <h2 className="text-xl font-bold text-gray-600 mb-2">Invalid module ID</h2>
+          <Button onClick={() => setLocation("/learning")}>
+            Back to Learning Path
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const { data: module, isLoading } = useQuery<LearningModule>({
     queryKey: ["/api/modules", moduleId],
+    enabled: !isNaN(moduleId) && moduleId > 0,
   });
 
   const updateProgressMutation = useMutation({

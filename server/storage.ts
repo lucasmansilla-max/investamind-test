@@ -99,6 +99,12 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<any | undefined>;
   invalidatePasswordResetToken(token: string): Promise<void>;
   updateUserPassword(userId: number, newPassword: string): Promise<void>;
+  
+  // Webhook log operations
+  createWebhookLog(log: any): Promise<any>;
+  getWebhookLogs(params: { limit?: number; offset?: number; source?: string; status?: string }): Promise<any[]>;
+  getWebhookLog(id: number): Promise<any | undefined>;
+  updateWebhookLogStatus(id: number, status: string, errorMessage?: string, subscriptionId?: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -114,6 +120,8 @@ export class MemStorage implements IStorage {
   private subscriptions: Map<number, Subscription>;
   private payments: Map<number, Payment>;
   private subscriptionHistoryMap: Map<number, SubscriptionHistory>;
+  private passwordResetTokens: Map<string, any>; // key: token, value: { id, userId, token, expiresAt, used, createdAt }
+  private webhookLogs: Map<number, any>; // WebhookLog
   private currentUserId: number;
   private currentModuleId: number;
   private currentProgressId: number;
@@ -123,6 +131,8 @@ export class MemStorage implements IStorage {
   private currentSubscriptionId: number;
   private currentPaymentId: number;
   private currentHistoryId: number;
+  private currentPasswordResetTokenId: number;
+  private currentWebhookLogId: number;
 
   constructor() {
     this.users = new Map();
@@ -137,6 +147,8 @@ export class MemStorage implements IStorage {
     this.subscriptions = new Map();
     this.payments = new Map();
     this.subscriptionHistoryMap = new Map();
+    this.passwordResetTokens = new Map();
+    this.webhookLogs = new Map();
     this.currentUserId = 1;
     this.currentModuleId = 1;
     this.currentProgressId = 1;
@@ -146,6 +158,8 @@ export class MemStorage implements IStorage {
     this.currentSubscriptionId = 1;
     this.currentPaymentId = 1;
     this.currentHistoryId = 1;
+    this.currentPasswordResetTokenId = 1;
+    this.currentWebhookLogId = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -346,11 +360,17 @@ export class MemStorage implements IStorage {
         estimatedMinutes: data.estimatedMinutes || 15,
         isLocked: data.isLocked || false,
         quizQuestion: data.quizQuestion || null,
+        quizQuestionEs: null,
         quizOptions: data.quizOptions || null,
+        quizOptionsEs: null,
         correctAnswer: data.correctAnswer || null,
+        correctAnswerEs: null,
         title: data.title,
+        titleEs: null,
         description: data.description,
+        descriptionEs: null,
         content: data.content,
+        contentEs: null,
         orderIndex: data.orderIndex,
         createdAt: new Date(),
       };
@@ -397,14 +417,21 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.email === email);
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.username === username);
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const user: User = {
       id,
       email: insertUser.email,
+      username: null,
       password: insertUser.password,
       firstName: insertUser.firstName || null,
       lastName: insertUser.lastName || null,
+      bio: null,
+      avatarUrl: null,
       selectedLanguage: insertUser.selectedLanguage || null,
       experienceLevel: insertUser.experienceLevel || null,
       investmentStyle: insertUser.investmentStyle || null,
@@ -412,8 +439,13 @@ export class MemStorage implements IStorage {
       totalLessonsCompleted: 0,
       currentModule: null,
       onboardingCompleted: insertUser.onboardingCompleted || false,
+      isBetaUser: false,
+      betaStartDate: null,
+      subscriptionStatus: "free",
+      role: "free",
       createdAt: new Date(),
       updatedAt: new Date(),
+      deletedAt: null,
     };
     this.users.set(id, user);
     return user;
@@ -446,8 +478,24 @@ export class MemStorage implements IStorage {
   async createModule(insertModule: InsertLearningModule): Promise<LearningModule> {
     const id = this.currentModuleId++;
     const module: LearningModule = {
-      ...insertModule,
       id,
+      title: insertModule.title,
+      titleEs: insertModule.titleEs ?? null,
+      description: insertModule.description,
+      descriptionEs: insertModule.descriptionEs ?? null,
+      content: insertModule.content,
+      contentEs: insertModule.contentEs ?? null,
+      experienceLevel: insertModule.experienceLevel,
+      category: insertModule.category,
+      orderIndex: insertModule.orderIndex,
+      estimatedMinutes: insertModule.estimatedMinutes ?? 10,
+      isLocked: insertModule.isLocked ?? true,
+      quizQuestion: insertModule.quizQuestion ?? null,
+      quizQuestionEs: insertModule.quizQuestionEs ?? null,
+      quizOptions: (insertModule.quizOptions as string[] | null) ?? null,
+      quizOptionsEs: (insertModule.quizOptionsEs as string[] | null) ?? null,
+      correctAnswer: insertModule.correctAnswer ?? null,
+      correctAnswerEs: insertModule.correctAnswerEs ?? null,
       createdAt: new Date(),
     };
     this.modules.set(id, module);
@@ -537,16 +585,23 @@ export class MemStorage implements IStorage {
       id,
       userId: insertPost.userId,
       content: insertPost.content,
+      imageUrl: insertPost.imageUrl ?? null,
       postType: insertPost.postType || "general",
+      messageType: insertPost.messageType ?? null,
+      ticker: insertPost.ticker ?? null,
       stockSymbol: insertPost.stockSymbol || null,
       stockData: insertPost.stockData || null,
       signalData: insertPost.signalData || null,
+      predictionData: insertPost.predictionData ?? null,
+      analysisType: insertPost.analysisType ?? null,
+      xpReward: insertPost.xpReward ?? 0,
       tags: insertPost.tags || [],
       likesCount: 0,
       commentsCount: 0,
       repostsCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
+      deletedAt: null,
     };
     this.posts.set(id, post);
     return post;
@@ -574,9 +629,12 @@ export class MemStorage implements IStorage {
     
     // Update post likes count
     const post = this.posts.get(postId);
-    if (post && post.likesCount > 0) {
-      post.likesCount = post.likesCount - 1;
-      this.posts.set(postId, post);
+    if (post) {
+      const currentLikes = post.likesCount || 0;
+      if (currentLikes > 0) {
+        post.likesCount = currentLikes - 1;
+        this.posts.set(postId, post);
+      }
     }
   }
 
@@ -720,12 +778,9 @@ export class MemStorage implements IStorage {
 
   // Subscription operations
   async getUserSubscription(userId: number): Promise<Subscription | undefined> {
-    for (const subscription of this.subscriptions.values()) {
-      if (subscription.userId === userId) {
-        return subscription;
-      }
-    }
-    return undefined;
+    return Array.from(this.subscriptions.values()).find(
+      subscription => subscription.userId === userId
+    );
   }
 
   async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
@@ -737,6 +792,7 @@ export class MemStorage implements IStorage {
       stripeCustomerId: insertSubscription.stripeCustomerId || null,
       stripeSubscriptionId: insertSubscription.stripeSubscriptionId || null,
       paypalSubscriptionId: insertSubscription.paypalSubscriptionId || null,
+      revenueCatSubscriptionId: insertSubscription.revenueCatSubscriptionId || null,
       currentPeriodStart: insertSubscription.currentPeriodStart || null,
       currentPeriodEnd: insertSubscription.currentPeriodEnd || null,
       trialStart: insertSubscription.trialStart || null,
@@ -772,7 +828,14 @@ export class MemStorage implements IStorage {
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
     const payment: Payment = {
       id: this.currentPaymentId++,
-      ...insertPayment,
+      subscriptionId: insertPayment.subscriptionId,
+      stripePaymentIntentId: insertPayment.stripePaymentIntentId ?? null,
+      paypalPaymentId: insertPayment.paypalPaymentId ?? null,
+      amount: insertPayment.amount,
+      currency: insertPayment.currency ?? "USD",
+      status: insertPayment.status,
+      paymentMethod: insertPayment.paymentMethod,
+      paidAt: insertPayment.paidAt ?? null,
       createdAt: new Date(),
     };
     
@@ -781,25 +844,147 @@ export class MemStorage implements IStorage {
   }
 
   async getPaymentHistory(subscriptionId: number): Promise<Payment[]> {
-    const payments: Payment[] = [];
-    for (const payment of this.payments.values()) {
-      if (payment.subscriptionId === subscriptionId) {
-        payments.push(payment);
-      }
-    }
-    return payments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const payments = Array.from(this.payments.values())
+      .filter(payment => payment.subscriptionId === subscriptionId)
+      .sort((a, b) => {
+        const aTime = a.createdAt?.getTime() || 0;
+        const bTime = b.createdAt?.getTime() || 0;
+        return bTime - aTime;
+      });
+    return payments;
   }
 
   // Subscription history
   async addSubscriptionHistory(insertHistory: InsertSubscriptionHistory): Promise<SubscriptionHistory> {
     const history: SubscriptionHistory = {
       id: this.currentHistoryId++,
-      ...insertHistory,
+      subscriptionId: insertHistory.subscriptionId,
+      action: insertHistory.action,
+      fromPlan: insertHistory.fromPlan ?? null,
+      toPlan: insertHistory.toPlan ?? null,
+      effectiveDate: insertHistory.effectiveDate,
+      notes: insertHistory.notes ?? null,
       createdAt: new Date(),
     };
     
     this.subscriptionHistoryMap.set(history.id, history);
     return history;
+  }
+
+  // Password reset operations
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<any> {
+    const resetToken = {
+      id: this.currentPasswordResetTokenId++,
+      userId,
+      token,
+      expiresAt,
+      used: false,
+      createdAt: new Date(),
+    };
+    this.passwordResetTokens.set(token, resetToken);
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<any | undefined> {
+    const resetToken = this.passwordResetTokens.get(token);
+    if (!resetToken || resetToken.used) {
+      return undefined;
+    }
+    
+    // Check if token is expired
+    if (new Date(resetToken.expiresAt) < new Date()) {
+      return undefined;
+    }
+    
+    return resetToken;
+  }
+
+  async invalidatePasswordResetToken(token: string): Promise<void> {
+    const resetToken = this.passwordResetTokens.get(token);
+    if (resetToken) {
+      resetToken.used = true;
+      this.passwordResetTokens.set(token, resetToken);
+    }
+  }
+
+  async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    user.password = newPassword;
+    user.updatedAt = new Date();
+    this.users.set(userId, user);
+  }
+
+  // Webhook log operations
+  async createWebhookLog(log: any): Promise<any> {
+    const webhookLog = {
+      id: this.currentWebhookLogId++,
+      source: log.source,
+      eventType: log.eventType,
+      payload: log.payload,
+      userId: log.userId || null,
+      subscriptionId: log.subscriptionId || null,
+      status: log.status || "received",
+      errorMessage: log.errorMessage || null,
+      processedAt: log.processedAt || null,
+      createdAt: new Date(),
+    };
+    this.webhookLogs.set(webhookLog.id, webhookLog);
+    return webhookLog;
+  }
+
+  async getWebhookLogs(params: {
+    limit?: number;
+    offset?: number;
+    source?: string;
+    status?: string;
+  }): Promise<any[]> {
+    const { limit = 100, offset = 0, source, status } = params;
+    
+    let logs = Array.from(this.webhookLogs.values());
+    
+    // Filter by source if provided
+    if (source) {
+      logs = logs.filter(log => log.source === source);
+    }
+    
+    // Filter by status if provided
+    if (status) {
+      logs = logs.filter(log => log.status === status);
+    }
+    
+    // Sort by createdAt DESC
+    logs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    // Apply pagination
+    return logs.slice(offset, offset + limit);
+  }
+
+  async getWebhookLog(id: number): Promise<any | undefined> {
+    return this.webhookLogs.get(id);
+  }
+
+  async updateWebhookLogStatus(
+    id: number,
+    status: string,
+    errorMessage?: string,
+    subscriptionId?: number
+  ): Promise<void> {
+    const log = this.webhookLogs.get(id);
+    if (!log) {
+      throw new Error("Webhook log not found");
+    }
+    
+    log.status = status;
+    log.errorMessage = errorMessage || null;
+    log.processedAt = new Date();
+    if (subscriptionId !== undefined) {
+      log.subscriptionId = subscriptionId;
+    }
+    
+    this.webhookLogs.set(id, log);
   }
 }
 

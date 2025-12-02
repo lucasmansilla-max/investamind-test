@@ -441,3 +441,31 @@ export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTo
 
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+// Webhook Logs Table
+export const webhookLogs = pgTable('webhook_logs', {
+  id: serial('id').primaryKey(),
+  source: varchar('source', { length: 50 }).notNull(), // 'revenuecat', 'stripe', etc.
+  eventType: varchar('event_type', { length: 100 }).notNull(),
+  payload: jsonb('payload').notNull().$type<Record<string, any>>(),
+  userId: integer('user_id').references(() => users.id),
+  subscriptionId: integer('subscription_id').references(() => subscriptions.id),
+  status: varchar('status', { length: 20 }).notNull().default('received'), // 'received', 'processed', 'failed', 'invalid'
+  errorMessage: text('error_message'),
+  processedAt: timestamp('processed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const insertWebhookLogSchema = createInsertSchema(webhookLogs).pick({
+  source: true,
+  eventType: true,
+  payload: true,
+  userId: true,
+  subscriptionId: true,
+  status: true,
+  errorMessage: true,
+  processedAt: true,
+});
+
+export type InsertWebhookLog = z.infer<typeof insertWebhookLogSchema>;
+export type WebhookLog = typeof webhookLogs.$inferSelect;

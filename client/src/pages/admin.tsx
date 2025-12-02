@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useLocation } from "wouter";
+import BottomNavigation from "@/bottom-navigation";
 // The original `ui/form` primitives are not present in this repo.
 // Provide lightweight fallbacks so the admin page can render without the missing module.
 // These wrappers aim to be non-intrusive: they render standard HTML elements and,
@@ -42,7 +44,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLearningModuleSchema, type InsertLearningModule, type LearningModule, type User } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Users, BookOpen, Settings, Plus, Edit, Trash2, Crown, Shield } from "lucide-react";
+import { Users, BookOpen, Settings, Plus, Edit, Trash2, Crown, Shield, Activity, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 const moduleFormSchema = insertLearningModuleSchema.extend({
@@ -54,6 +56,7 @@ type ModuleForm = z.infer<typeof moduleFormSchema>;
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [selectedTab, setSelectedTab] = useState("users");
   const [editingModule, setEditingModule] = useState<any>(null);
 
@@ -88,6 +91,23 @@ export default function Admin() {
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Webhook logs query
+  const { data: webhookLogsData, refetch: refetchWebhookLogs } = useQuery<{ logs: any[] }>({
+    queryKey: ["/api/admin/webhook-logs"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/admin/webhook-logs?limit=100");
+        return (await res.json()) as { logs: any[] };
+      } catch (err) {
+        return { logs: [] };
+      }
+    },
+    retry: false,
+    staleTime: 30 * 1000, // 30 seconds - webhook logs should be more frequently updated
+  });
+
+  const webhookLogs = webhookLogsData?.logs || [];
 
   const form = useForm<ModuleForm>({
     resolver: zodResolver(moduleFormSchema),
@@ -146,19 +166,33 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-light-green/10 to-brand-blue/10 p-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Crown className="h-8 w-8 text-brand-orange" />
-            <h1 className="text-3xl font-bold text-brand-dark-green">Admin Dashboard</h1>
+    <div className="min-h-screen bg-brand-light-green/10" style={{ paddingBottom: '90px' }}>
+      {/* Header */}
+      <header className="bg-brand-light-green border-b border-brand-dark-green/20 sticky top-0 z-40">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/")}
+              className="text-brand-dark-green hover:text-brand-orange"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6 text-brand-orange" />
+              <h1 className="text-xl font-bold text-brand-dark-green">Admin Dashboard</h1>
+            </div>
           </div>
-          <p className="text-brand-brown">Manage users, permissions, and course content</p>
         </div>
+      </header>
+
+      <div className="p-4 pb-24">
+        <div className="max-w-6xl mx-auto">
+          <p className="text-brand-brown mb-6">Manage users, permissions, and course content</p>
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -166,6 +200,10 @@ export default function Admin() {
             <TabsTrigger value="modules" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Modules
+            </TabsTrigger>
+            <TabsTrigger value="webhooks" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Webhook Logs
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -385,6 +423,124 @@ export default function Admin() {
             </div>
           </TabsContent>
 
+          {/* Webhook Logs */}
+          <TabsContent value="webhooks">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-brand-dark-green">
+                    <Activity className="h-5 w-5" />
+                    Webhook Logs
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchWebhookLogs()}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {webhookLogs.length === 0 ? (
+                    <p className="text-center text-brand-brown py-8">No webhook logs found</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b bg-brand-light-green/10">
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">ID</th>
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">Source</th>
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">Event Type</th>
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">Status</th>
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">User ID</th>
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">Created At</th>
+                            <th className="text-left p-2 text-sm font-semibold text-brand-dark-green">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {webhookLogs.map((log: any) => (
+                            <tr key={log.id} className="border-b hover:bg-brand-light-green/5">
+                              <td className="p-2 text-sm text-brand-brown">{log.id}</td>
+                              <td className="p-2 text-sm">
+                                <Badge variant="outline">{log.source}</Badge>
+                              </td>
+                              <td className="p-2 text-sm text-brand-dark-green font-medium">
+                                {log.eventType}
+                              </td>
+                              <td className="p-2 text-sm">
+                                <Badge
+                                  variant={
+                                    log.status === "processed"
+                                      ? "default"
+                                      : log.status === "failed"
+                                      ? "destructive"
+                                      : log.status === "invalid"
+                                      ? "destructive"
+                                      : "secondary"
+                                  }
+                                >
+                                  {log.status}
+                                </Badge>
+                              </td>
+                              <td className="p-2 text-sm text-brand-brown">
+                                {log.userId || "-"}
+                              </td>
+                              <td className="p-2 text-sm text-brand-brown">
+                                {log.createdAt
+                                  ? new Date(log.createdAt).toLocaleString()
+                                  : "-"}
+                              </td>
+                              <td className="p-2 text-sm">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      View Details
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>Webhook Log Details</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4 mt-4">
+                                      <div>
+                                        <h4 className="font-semibold text-brand-dark-green mb-2">Basic Information</h4>
+                                        <div className="space-y-2 text-sm">
+                                          <p><strong>ID:</strong> {log.id}</p>
+                                          <p><strong>Source:</strong> {log.source}</p>
+                                          <p><strong>Event Type:</strong> {log.eventType}</p>
+                                          <p><strong>Status:</strong> {log.status}</p>
+                                          <p><strong>User ID:</strong> {log.userId || "N/A"}</p>
+                                          <p><strong>Subscription ID:</strong> {log.subscriptionId || "N/A"}</p>
+                                          <p><strong>Created At:</strong> {log.createdAt ? new Date(log.createdAt).toLocaleString() : "N/A"}</p>
+                                          <p><strong>Processed At:</strong> {log.processedAt ? new Date(log.processedAt).toLocaleString() : "N/A"}</p>
+                                          {log.errorMessage && (
+                                            <p className="text-red-600"><strong>Error:</strong> {log.errorMessage}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-semibold text-brand-dark-green mb-2">Payload</h4>
+                                        <pre className="bg-gray-100 p-4 rounded text-xs overflow-x-auto">
+                                          {JSON.stringify(log.payload, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Settings */}
           <TabsContent value="settings">
             <Card className="shadow-lg">
@@ -431,7 +587,10 @@ export default function Admin() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
+
+      <BottomNavigation />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
 import {
   Purchases,
   LOG_LEVEL,
@@ -66,6 +67,14 @@ export function usePurchases(appUserId?: string) {
       return;
     }
 
+    // Solo configurar RevenueCat en plataformas nativas (iOS/Android)
+    // En web, RevenueCat no funciona correctamente
+    if (!Capacitor.isNativePlatform()) {
+      setIsLoading(false);
+      setIsPaid(false);
+      return;
+    }
+
     try {
       await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
       const apiKey = "test_tYbKhCzhifEmkMbTJZoFaaDIPkk";
@@ -98,8 +107,10 @@ export function usePurchases(appUserId?: string) {
         await syncWithBackend(updatedInfo, appUserId);
       });
     } catch (e) {
+      console.error("Error configuring RevenueCat:", e);
       setIsLoading(false);
-      throw e;
+      setIsPaid(false);
+      // No lanzar el error, solo registrar y continuar
     }
   }, [appUserId]);
 
@@ -108,6 +119,11 @@ export function usePurchases(appUserId?: string) {
   }, [configure]);
 
   const restorePurchases = useCallback(async () => {
+    // Solo restaurar en plataformas nativas
+    if (!Capacitor.isNativePlatform() || !appUserId) {
+      return null;
+    }
+
     try {
       await Purchases.restorePurchases();
       const updated = await Purchases.getCustomerInfo();
@@ -122,7 +138,8 @@ export function usePurchases(appUserId?: string) {
       
       return updated;
     } catch (e) {
-      throw e;
+      console.error("Error restoring purchases:", e);
+      return null;
     }
   }, [appUserId]);
 

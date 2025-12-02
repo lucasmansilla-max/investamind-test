@@ -16,7 +16,7 @@ import { useGamification } from "@/hooks/use-gamification";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { LearningModule, MarketRecap } from "@shared/schema";
 import { useState, useEffect } from "react";
-import { Clock, Trophy, Flame, BookOpen, ChevronRight, TrendingUp, TrendingDown, Bell, User, BarChart3, Target } from "lucide-react";
+import { Clock, Trophy, Flame, BookOpen, ChevronRight, TrendingUp, TrendingDown, Bell, User, BarChart3, Target, Shield } from "lucide-react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -120,6 +120,17 @@ export default function Home() {
               <Flame className="w-3 h-3" />
               <span className="text-xs font-bold">{userStats.currentStreak} {t('dashboard.dayStreak')}</span>
             </Badge>
+          )}
+          
+          {/* Admin Button - Only visible for admin users */}
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setLocation("/admin")}
+              className="relative touch-target transition-all duration-300 hover:scale-110 p-2 rounded-full hover:bg-white/20"
+              title="Admin Panel"
+            >
+              <Shield className="w-5 h-5 text-brand-dark-green" />
+            </button>
           )}
           
           {/* Notifications */}

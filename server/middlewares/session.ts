@@ -8,19 +8,6 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: number;
-        handle?: string;
-        role?: string;
-      };
-    }
-  }
-}
-
 /**
  * Session middleware - currently a passthrough
  * Session validation is handled in individual routes
