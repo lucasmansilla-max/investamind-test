@@ -48,37 +48,12 @@ export function errorHandler(
   // Determine status code
   const status = (err as AppError).status || (err as AppError).statusCode || 500;
   
-  // Determine error message with more descriptive defaults
-  let message = err.message || 'Error interno del servidor';
+  // Determine error message
+  let message = err.message || 'Internal Server Error';
   
-  // Map common error messages to more descriptive ones
-  if (status === 400 && !message.includes('requerido') && !message.includes('válido')) {
-    if (message === 'Invalid request data' || message === 'Invalid request') {
-      message = 'Los datos proporcionados no son válidos. Por favor, verifica los campos e intenta nuevamente.';
-    } else if (message.includes('Invalid')) {
-      message = `Datos inválidos: ${message}`;
-    }
-  } else if (status === 401) {
-    if (message === 'Not authenticated' || message === 'Authentication required') {
-      message = 'Debes iniciar sesión para acceder a este recurso.';
-    } else if (message === 'Invalid session') {
-      message = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
-    }
-  } else if (status === 403) {
-    if (message === 'Forbidden' || message.includes('Forbidden')) {
-      message = 'No tienes permisos para realizar esta acción.';
-    }
-  } else if (status === 404) {
-    if (message === 'Not found' || message.includes('not found')) {
-      message = 'El recurso solicitado no fue encontrado.';
-    }
-  } else if (status === 500) {
-    // Don't expose internal errors in production
-    if (process.env.NODE_ENV === 'production') {
-      message = 'Ocurrió un error interno del servidor. Por favor, intenta nuevamente más tarde.';
-    } else {
-      message = `Error interno: ${message}`;
-    }
+  // Don't expose internal errors in production
+  if (status === 500 && process.env.NODE_ENV === 'production') {
+    message = 'Internal Server Error';
   }
 
   // Send error response

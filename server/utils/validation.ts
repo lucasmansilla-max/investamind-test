@@ -239,6 +239,16 @@ export const idParamSchema = z
   .transform((val) => parseInt(val, 10));
 
 /**
+ * Create a schema to validate a specific route parameter by name
+ * This handles cases where route params have different names (e.g., :id, :postId, :userId)
+ */
+export function createParamSchema(paramName: string) {
+  return z.object({
+    [paramName]: idParamSchema,
+  });
+}
+
+/**
  * Auth validation schemas
  */
 export const signupSchema = z.object({
@@ -362,10 +372,20 @@ export function validateRequest<T extends z.ZodTypeAny>(
     } else if (source === 'query') {
       req.query = result.data;
     } else {
-      req.params = result.data;
+      // For params, merge validated data back into req.params
+      // This preserves other params that might exist
+      req.params = { ...req.params, ...result.data };
     }
     
     next();
   };
+}
+
+/**
+ * Validate a specific route parameter by name
+ * Use this when you have non-standard parameter names like :postId, :userId, etc.
+ */
+export function validateParam(paramName: string) {
+  return validateRequest(createParamSchema(paramName), 'params');
 }
 

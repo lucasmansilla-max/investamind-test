@@ -3,8 +3,8 @@ import { asyncHandler } from "../../middlewares/error";
 import { createComment, getComments } from "./service";
 import {
   createCommentSchema,
-  idParamSchema,
   validateRequest,
+  validateParam,
 } from "../../utils/validation";
 
 const router = Router();
@@ -26,7 +26,7 @@ function getSession(req: Request): { userId: number } | null {
 // POST /api/posts/:id/comments - Create a comment
 router.post(
   "/:id/comments",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   validateRequest(createCommentSchema),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
@@ -55,7 +55,7 @@ router.post(
 // GET /api/posts/:id/comments - Get comments for a post
 router.get(
   "/:id/comments",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {

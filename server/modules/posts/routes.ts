@@ -15,8 +15,8 @@ import {
   createPostSchema,
   updatePostSchema,
   feedQuerySchema,
-  idParamSchema,
   validateRequest,
+  validateParam,
 } from '../../utils/validation';
 
 export const postsRouter = Router();
@@ -79,7 +79,7 @@ postsRouter.post(
  */
 postsRouter.patch(
   '/:id',
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   validateRequest(updatePostSchema),
   asyncHandler(async (req: Request, res: Response) => {
     const session = getSession(req);
@@ -115,7 +115,7 @@ postsRouter.patch(
  */
 postsRouter.delete(
   '/:id',
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req: Request, res: Response) => {
     const session = getSession(req);
     if (!session) {
@@ -180,7 +180,7 @@ postsRouter.get(
  */
 postsRouter.get(
   '/:id',
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req: Request, res: Response) => {
     const postId = req.params.id as unknown as number;
 
@@ -261,7 +261,7 @@ postsRouter.get(
  */
 postsRouter.post(
   '/:id/deactivate',
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req: Request, res: Response) => {
     const session = getSession(req);
     if (!session) {

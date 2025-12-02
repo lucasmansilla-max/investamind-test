@@ -10,9 +10,9 @@ import {
 } from "./service";
 import { asyncHandler } from "../../middlewares/error";
 import {
-  idParamSchema,
   searchQuerySchema,
   validateRequest,
+  validateParam,
 } from "../../utils/validation";
 
 const router = Router();
@@ -33,7 +33,7 @@ function getSession(req: Request): { userId: number } | null {
 
 router.post(
   "/:id/follow",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
@@ -69,7 +69,7 @@ router.post(
 
 router.delete(
   "/:id/follow",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
@@ -93,7 +93,7 @@ router.delete(
 
 router.get(
   "/:id/followers",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
@@ -128,7 +128,7 @@ router.get(
 
 router.get(
   "/:id/following",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
@@ -211,7 +211,7 @@ router.get(
 
 router.get(
   "/:id/posts",
-  validateRequest(idParamSchema, 'params'),
+  validateParam('id'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
