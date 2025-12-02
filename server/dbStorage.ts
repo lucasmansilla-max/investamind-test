@@ -16,6 +16,7 @@ import {
   postInteractions,
   userBlocks,
   passwordResetTokens,
+  webhookLogs,
   type User,
   type InsertUser,
   type LearningModule,
@@ -36,8 +37,10 @@ import {
   type InsertSubscriptionHistory,
   type InsertPasswordResetToken,
   type PasswordResetToken,
+  type InsertWebhookLog,
+  type WebhookLog,
 } from "@shared/schema";
-import { eq, and, desc, isNull, notInArray } from "drizzle-orm";
+import { eq, and, desc, isNull, notInArray, sql } from "drizzle-orm";
 import { IStorage } from "./storage";
 import bcrypt from "bcrypt";
 
@@ -83,7 +86,13 @@ export class DbStorage implements IStorage {
   }
 
   async createModule(insertModule: InsertLearningModule): Promise<LearningModule> {
-    const [module] = await db.insert(learningModules).values(insertModule).returning();
+    // Normalize quizOptions to ensure they are string[] or null/undefined for Drizzle
+    const normalizedModule = {
+      ...insertModule,
+      quizOptions: insertModule.quizOptions as string[] | null | undefined,
+      quizOptionsEs: insertModule.quizOptionsEs as string[] | null | undefined,
+    };
+    const [module] = await db.insert(learningModules).values(normalizedModule).returning();
     return module;
   }
 
@@ -192,7 +201,7 @@ export class DbStorage implements IStorage {
     // Increment like count
     await db
       .update(communityPosts)
-      .set({ likesCount: db.$count(communityPosts.likesCount) + 1 } as any)
+      .set({ likesCount: sql`${communityPosts.likesCount} + 1` })
       .where(eq(communityPosts.id, postId));
   }
 
@@ -210,7 +219,7 @@ export class DbStorage implements IStorage {
     // Decrement like count
     await db
       .update(communityPosts)
-      .set({ likesCount: db.$count(communityPosts.likesCount) - 1 } as any)
+      .set({ likesCount: sql`${communityPosts.likesCount} - 1` })
       .where(eq(communityPosts.id, postId));
   }
 
@@ -238,7 +247,7 @@ export class DbStorage implements IStorage {
     // Increment repost count
     await db
       .update(communityPosts)
-      .set({ repostsCount: db.$count(communityPosts.repostsCount) + 1 } as any)
+      .set({ repostsCount: sql`${communityPosts.repostsCount} + 1` })
       .where(eq(communityPosts.id, postId));
   }
 
@@ -256,7 +265,7 @@ export class DbStorage implements IStorage {
     // Decrement repost count
     await db
       .update(communityPosts)
-      .set({ repostsCount: db.$count(communityPosts.repostsCount) - 1 } as any)
+      .set({ repostsCount: sql`${communityPosts.repostsCount} - 1` })
       .where(eq(communityPosts.id, postId));
   }
 
@@ -424,6 +433,118 @@ export class DbStorage implements IStorage {
       .update(users)
       .set({ password: hashedPassword, updatedAt: new Date() })
       .where(eq(users.id, userId));
+  }
+
+  // Webhook log operations
+  async createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog> {
+    try {
+      const [webhookLog] = await db.insert(webhookLogs).values(log).returning();
+      if (!webhookLog) {
+        throw new Error("Failed to create webhook log: no record returned");
+      }
+      console.log("Webhook log created successfully:", {
+        id: webhookLog.id,
+        source: webhookLog.source,
+        eventType: webhookLog.eventType,
+        status: webhookLog.status,
+      });
+      return webhookLog;
+    } catch (error: any) {
+      console.error("Error creating webhook log in database:", {
+        error: error.message,
+        stack: error.stack,
+        logData: {
+          source: log.source,
+          eventType: log.eventType,
+          userId: log.userId,
+          status: log.status,
+        },
+      });
+      throw error;
+    }
+  }
+
+  async getWebhookLogs(params: { 
+    limit?: number; 
+    offset?: number; 
+    source?: string; 
+    status?: string 
+  }): Promise<WebhookLog[]> {
+    const { limit = 100, offset = 0, source, status } = params;
+    
+    const conditions = [];
+    if (source) {
+      conditions.push(eq(webhookLogs.source, source));
+    }
+    if (status) {
+      conditions.push(eq(webhookLogs.status, status));
+    }
+    
+    if (conditions.length > 0) {
+      return await db
+        .select()
+        .from(webhookLogs)
+        .where(and(...conditions))
+        .orderBy(desc(webhookLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } else {
+      return await db
+        .select()
+        .from(webhookLogs)
+        .orderBy(desc(webhookLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+  }
+
+  async getWebhookLog(id: number): Promise<WebhookLog | undefined> {
+    const [log] = await db.select().from(webhookLogs).where(eq(webhookLogs.id, id));
+    return log;
+  }
+
+  async updateWebhookLogStatus(
+    id: number, 
+    status: string, 
+    errorMessage?: string,
+    subscriptionId?: number
+  ): Promise<void> {
+    try {
+      const updates: any = { 
+        status, 
+        errorMessage: errorMessage || null,
+        processedAt: new Date()
+      };
+      
+      if (subscriptionId !== undefined) {
+        updates.subscriptionId = subscriptionId;
+      }
+      
+      const result = await db
+        .update(webhookLogs)
+        .set(updates)
+        .where(eq(webhookLogs.id, id))
+        .returning();
+      
+      if (!result || result.length === 0) {
+        console.warn("Webhook log update did not affect any rows:", { id, status });
+      } else {
+        console.log("Webhook log updated successfully:", {
+          id: result[0].id,
+          status: result[0].status,
+          subscriptionId: result[0].subscriptionId,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error updating webhook log status in database:", {
+        error: error.message,
+        stack: error.stack,
+        id,
+        status,
+        subscriptionId,
+      });
+      throw error;
+    }
   }
 }
 

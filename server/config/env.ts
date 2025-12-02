@@ -30,6 +30,9 @@ export interface EnvConfig {
   MAILGUN_API_KEY?: string;
   MAILGUN_DOMAIN?: string;
   MAILGUN_FROM?: string;
+
+  // RevenueCat configuration
+  REVENUECAT_WEBHOOK_SECRET?: string;
 }
 
 /**
@@ -77,6 +80,8 @@ export function loadEnv(): EnvConfig {
     MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
     MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
     MAILGUN_FROM: process.env.MAILGUN_FROM,
+    // RevenueCat configuration
+    REVENUECAT_WEBHOOK_SECRET: process.env.REVENUECAT_WEBHOOK_SECRET,
   };
 }
 
