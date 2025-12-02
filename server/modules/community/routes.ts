@@ -13,6 +13,13 @@ import { isAdmin, canViewTradingAlerts, canCreateTradingAlerts } from "../../uti
 import { db } from "../../config/db";
 import { communityPosts } from "@shared/schema";
 import { createPost } from "../posts/service";
+import {
+  createPostSchema,
+  idParamSchema,
+  commentContentSchema,
+  validateRequest,
+} from "../../utils/validation";
+import { z } from "zod";
 
 const router = Router();
 
@@ -128,33 +135,39 @@ router.get(
 router.post(
   "/posts",
   requireAuth,
+  validateRequest(z.object({
+    content: z.string().min(1, 'El contenido es requerido').max(5000, 'El contenido no puede exceder 5000 caracteres'),
+    messageType: z.enum(['general', 'signal', 'trading_alert']).optional(),
+    postType: z.enum(['general', 'ad', 'advertisement']).optional().default('general'),
+    imageUrl: z.string().url('La URL de la imagen debe ser válida').optional(),
+  })),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para crear un post.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const { content, messageType } = req.body;
-
-    if (!content || !content.trim()) {
-      return res.status(400).json({ message: "Content is required" });
-    }
+    const { content, messageType, postType, imageUrl } = req.body;
 
     // Verify user has permission to create trading alerts
     if (messageType === "signal" || messageType === "trading_alert") {
       if (!canCreateTradingAlerts(req.user)) {
         return res.status(403).json({
-          message: "Premium subscription required to create trading alerts",
+          message: "Se requiere una suscripción premium para crear alertas de trading",
           requiresUpgrade: true,
+          code: "PREMIUM_REQUIRED",
         });
       }
     }
 
     // Check if user is admin and wants to create an ad
-    const postType = req.body.postType || "general";
     if (postType === "ad" || postType === "advertisement") {
       if (!isAdmin(req.user)) {
         return res.status(403).json({
-          message: "Only admins can publish ads",
+          message: "Solo los administradores pueden publicar anuncios",
+          code: "ADMIN_ACCESS_REQUIRED",
         });
       }
     }
@@ -164,9 +177,9 @@ router.post(
     const newPost = await createPost({
       userId: req.user.id,
       body: content.trim(),
-      imageUrl: req.body.imageUrl,
+      imageUrl: imageUrl || undefined,
       messageType: messageType || null,
-      postType: postType,
+      postType: postType || 'general',
       io: io,
     });
 
@@ -199,12 +212,16 @@ router.post(
 router.post(
   "/posts/:postId/like",
   requireAuth,
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para dar like a un post.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const postId = parseInt(req.params.postId);
+    const postId = req.params.postId as unknown as number;
     const isLiked = await storage.isPostLiked(req.user.id, postId);
 
     if (isLiked) {
@@ -224,12 +241,16 @@ router.post(
 router.get(
   "/posts/:postId/like-status",
   requireAuth,
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para ver el estado de like.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const postId = parseInt(req.params.postId);
+    const postId = req.params.postId as unknown as number;
     const isLiked = await storage.isPostLiked(req.user.id, postId);
 
     res.json({ liked: isLiked });
@@ -243,12 +264,16 @@ router.get(
 router.post(
   "/posts/:postId/repost",
   requireAuth,
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para repostear un post.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const postId = parseInt(req.params.postId);
+    const postId = req.params.postId as unknown as number;
     const isReposted = await storage.isPostReposted(req.user.id, postId);
 
     if (isReposted) {
@@ -281,17 +306,20 @@ router.get(
 router.post(
   "/posts/:postId/comments",
   requireAuth,
+  validateRequest(idParamSchema, 'params'),
+  validateRequest(z.object({
+    content: commentContentSchema,
+  })),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para crear un comentario.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const postId = parseInt(req.params.postId);
+    const postId = req.params.postId as unknown as number;
     const { content } = req.body;
-
-    if (!content || !content.trim()) {
-      return res.status(400).json({ message: "Comment content is required" });
-    }
 
     const comment = await storage.createComment(
       postId,
@@ -309,27 +337,29 @@ router.post(
 router.post(
   "/posts/:postId/deactivate",
   requireAuth,
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para desactivar un post.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
     if (!isAdmin(req.user)) {
       return res.status(403).json({
-        message: "Forbidden: Admin access required",
+        message: "Solo los administradores pueden desactivar posts.",
+        code: "ADMIN_ACCESS_REQUIRED",
       });
     }
 
-    const postId = parseInt(req.params.postId, 10);
-    if (isNaN(postId)) {
-      return res.status(400).json({ message: "Invalid post ID" });
-    }
+    const postId = req.params.postId as unknown as number;
 
     const { deactivatePost } = await import("../posts/service.js");
     const deactivatedPost = await deactivatePost(postId, req.user.id);
 
     return res.status(200).json({
-      message: "Post deactivated successfully",
+      message: "Post desactivado exitosamente",
       post: deactivatedPost,
     });
   })
@@ -342,27 +372,29 @@ router.post(
 router.post(
   "/posts/:postId/reactivate",
   requireAuth,
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para reactivar un post.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
     if (!isAdmin(req.user)) {
       return res.status(403).json({
-        message: "Forbidden: Admin access required",
+        message: "Solo los administradores pueden reactivar posts.",
+        code: "ADMIN_ACCESS_REQUIRED",
       });
     }
 
-    const postId = parseInt(req.params.postId, 10);
-    if (isNaN(postId)) {
-      return res.status(400).json({ message: "Invalid post ID" });
-    }
+    const postId = req.params.postId as unknown as number;
 
     const { reactivatePost } = await import("../posts/service.js");
     const reactivatedPost = await reactivatePost(postId, req.user.id);
 
     return res.status(200).json({
-      message: "Post reactivated successfully",
+      message: "Post reactivado exitosamente",
       post: reactivatedPost,
     });
   })

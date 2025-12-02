@@ -13,12 +13,47 @@ vi.mock("@/lib/queryClient", () => ({
   apiRequest: vi.fn(),
 }));
 
-// Mock useLanguage
+// Mock useLanguage - return actual message type names
 vi.mock("@/contexts/language-context", () => ({
   useLanguage: () => ({
-    t: (key: string) => key,
+    t: (key: string) => {
+      // Map message type keys to actual names
+      const messageTypeMap: Record<string, string> = {
+        "community.messageTypes.analysis": "Market Analysis",
+        "community.messageTypes.prediction": "Price Prediction",
+        "community.messageTypes.signal": "Trading Signal",
+        "community.messageTypes.education": "Educational Content",
+        "community.messageTypes.news": "Market News",
+        "community.messageTypes.question": "Ask Question",
+        "community.messageTypes.general": "General Discussion",
+        "community.messageTypes.advertisement": "Advertisement",
+      };
+      
+      const descriptionMap: Record<string, string> = {
+        "community.messageTypeDescriptions.analysis": "Share your technical or fundamental analysis",
+        "community.messageTypeDescriptions.prediction": "Make a price prediction with reasoning",
+        "community.messageTypeDescriptions.signal": "Share entry/exit points with targets",
+        "community.messageTypeDescriptions.education": "Teach others about trading concepts",
+        "community.messageTypeDescriptions.news": "Share and discuss market news",
+        "community.messageTypeDescriptions.question": "Get help from the community",
+        "community.messageTypeDescriptions.general": "General trading discussion",
+        "community.messageTypeDescriptions.advertisement": "Publish an official announcement (Admin only)",
+      };
+      
+      return messageTypeMap[key] || descriptionMap[key] || key;
+    },
   }),
 }));
+
+// Mock useQuery
+const mockUseQuery = vi.fn();
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual("@tanstack/react-query");
+  return {
+    ...actual,
+    useQuery: (options: any) => mockUseQuery(options),
+  };
+});
 
 describe("MessageTypeModal", () => {
   let queryClient: QueryClient;
@@ -40,15 +75,14 @@ describe("MessageTypeModal", () => {
     component: React.ReactElement,
     subscriptionData: any = { role: "free" }
   ) => {
-    const ReactQuery = require("@tanstack/react-query");
-    vi.spyOn(ReactQuery, "useQuery").mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: subscriptionData,
       isLoading: false,
       error: null,
       isError: false,
       isSuccess: true,
       refetch: vi.fn(),
-    } as any);
+    });
 
     return render(
       <QueryClientProvider client={queryClient}>
@@ -69,7 +103,7 @@ describe("MessageTypeModal", () => {
       );
 
       // Admin should see all types including advertisement and signal
-      expect(screen.getByText(/Advertisement/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Advertisement/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Trading Signal/i)).toBeInTheDocument();
       expect(screen.getByText(/Market Analysis/i)).toBeInTheDocument();
     });

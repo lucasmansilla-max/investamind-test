@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PremiumGate from "./PremiumGate";
-import * as ReactQuery from "@tanstack/react-query";
 
 // Mock wouter
 vi.mock("wouter", () => ({
@@ -16,6 +15,16 @@ vi.mock("@/lib/queryClient", () => ({
     json: async () => ({}),
   }),
 }));
+
+// Mock useQuery
+const mockUseQuery = vi.fn();
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual("@tanstack/react-query");
+  return {
+    ...actual,
+    useQuery: (options: any) => mockUseQuery(options),
+  };
+});
 
 describe("PremiumGate", () => {
   let queryClient: QueryClient;
@@ -35,14 +44,14 @@ describe("PremiumGate", () => {
     component: React.ReactElement,
     subscriptionData: any = { role: "free" }
   ) => {
-    vi.spyOn(ReactQuery, "useQuery").mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: subscriptionData,
       isLoading: false,
       error: null,
       isError: false,
       isSuccess: true,
       refetch: vi.fn(),
-    } as any);
+    });
 
     return render(
       <QueryClientProvider client={queryClient}>
@@ -89,12 +98,15 @@ describe("PremiumGate", () => {
     it("should block access for free role", () => {
       renderWithQueryClient(
         <PremiumGate>
-          <div>Premium Content</div>
+          <div>Premium Content Children</div>
         </PremiumGate>,
         { role: "free" }
       );
 
-      expect(screen.queryByText("Premium Content")).not.toBeInTheDocument();
+      // The children should not be visible when blocked
+      expect(screen.queryByText("Premium Content Children")).not.toBeInTheDocument();
+      // The title "Premium Content" should be visible as part of the block message
+      expect(screen.getByText("Premium Content")).toBeInTheDocument();
       expect(screen.getByText("Upgrade to Premium")).toBeInTheDocument();
     });
 
@@ -160,12 +172,15 @@ describe("PremiumGate", () => {
     it("should show upgrade prompt with default title", () => {
       renderWithQueryClient(
         <PremiumGate>
-          <div>Premium Content</div>
+          <div>Premium Content Children</div>
         </PremiumGate>,
         { role: "free" }
       );
 
-      expect(screen.queryByText("Premium Content")).not.toBeInTheDocument();
+      // The children should not be visible when blocked
+      expect(screen.queryByText("Premium Content Children")).not.toBeInTheDocument();
+      // The title "Premium Content" should be visible as part of the block message
+      expect(screen.getByText("Premium Content")).toBeInTheDocument();
       expect(screen.getByText("Upgrade to Premium")).toBeInTheDocument();
     });
 

@@ -9,8 +9,9 @@ vi.mock("wouter", () => ({
 }));
 
 // Mock hooks
+const mockUseAuth = vi.fn();
 vi.mock("@/hooks/use-auth", () => ({
-  useAuth: vi.fn(),
+  useAuth: () => mockUseAuth(),
 }));
 
 vi.mock("@/hooks/use-progress", () => ({
@@ -54,6 +55,16 @@ vi.mock("@/contexts/language-context", () => ({
   }),
 }));
 
+// Mock useQuery
+const mockUseQuery = vi.fn();
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual("@tanstack/react-query");
+  return {
+    ...actual,
+    useQuery: (options: any) => mockUseQuery(options),
+  };
+});
+
 describe("Home", () => {
   let queryClient: QueryClient;
 
@@ -72,8 +83,7 @@ describe("Home", () => {
     component: React.ReactElement,
     userRole: string = "free"
   ) => {
-    const { useAuth } = require("@/hooks/use-auth");
-    vi.mocked(useAuth).mockReturnValue({
+    mockUseAuth.mockReturnValue({
       user: {
         id: 1,
         email: "test@example.com",
@@ -85,15 +95,39 @@ describe("Home", () => {
       isAuthenticated: true,
     });
 
-    const ReactQuery = require("@tanstack/react-query");
-    vi.spyOn(ReactQuery, "useQuery").mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: null,
-      isError: false,
-      isSuccess: true,
-      refetch: vi.fn(),
-    } as any);
+    // Mock useQuery to return different data based on queryKey
+    mockUseQuery.mockImplementation((options: any) => {
+      const queryKey = options?.queryKey?.[0];
+      if (queryKey === "/api/modules") {
+        return {
+          data: [],
+          isLoading: false,
+          error: null,
+          isError: false,
+          isSuccess: true,
+          refetch: vi.fn(),
+        };
+      }
+      if (queryKey === "/api/market-recaps") {
+        return {
+          data: [],
+          isLoading: false,
+          error: null,
+          isError: false,
+          isSuccess: true,
+          refetch: vi.fn(),
+        };
+      }
+      // Default return
+      return {
+        data: [],
+        isLoading: false,
+        error: null,
+        isError: false,
+        isSuccess: true,
+        refetch: vi.fn(),
+      };
+    });
 
     return render(
       <QueryClientProvider client={queryClient}>
@@ -124,8 +158,7 @@ describe("Home", () => {
     });
 
     it("should not show admin button when user is null", () => {
-      const { useAuth } = require("@/hooks/use-auth");
-      vi.mocked(useAuth).mockReturnValue({
+      mockUseAuth.mockReturnValue({
         user: null,
         isLoading: false,
         isAuthenticated: false,
@@ -146,8 +179,11 @@ describe("Home", () => {
       renderWithQueryClient(<Home />, "free");
 
       expect(screen.getByText(/40%/i)).toBeInTheDocument();
-      expect(screen.getByText(/10/i)).toBeInTheDocument();
-      expect(screen.getByText(/5/i)).toBeInTheDocument();
+      // Verify user stats are displayed - there may be multiple instances of these numbers
+      // so we verify they exist rather than using getByText which requires a unique match
+      expect(screen.getByText("100")).toBeInTheDocument(); // totalPoints
+      expect(screen.getAllByText("10").length).toBeGreaterThan(0); // lessonsCompleted
+      expect(screen.getAllByText("5").length).toBeGreaterThan(0); // currentStreak
     });
 
     it("should display streak badge when streak > 0", () => {
@@ -163,7 +199,10 @@ describe("Home", () => {
 
       expect(screen.getByText(/continuelearning/i)).toBeInTheDocument();
       expect(screen.getByText(/viewProgress/i)).toBeInTheDocument();
-      expect(screen.getByText(/Premium/i)).toBeInTheDocument();
+      // There are multiple "Premium" texts on the page, so we use getAllByText
+      // and verify that at least one exists (the navigation button)
+      const premiumElements = screen.getAllByText(/Premium/i);
+      expect(premiumElements.length).toBeGreaterThan(0);
     });
   });
 });

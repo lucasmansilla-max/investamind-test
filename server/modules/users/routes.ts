@@ -9,6 +9,11 @@ import {
   suggestUsers,
 } from "./service";
 import { asyncHandler } from "../../middlewares/error";
+import {
+  idParamSchema,
+  searchQuerySchema,
+  validateRequest,
+} from "../../utils/validation";
 
 const router = Router();
 
@@ -28,17 +33,25 @@ function getSession(req: Request): { userId: number } | null {
 
 router.post(
   "/:id/follow",
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para seguir a un usuario.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
     
     const userId = session.userId;
+    const followingId = req.params.id as unknown as number;
 
-    const followingId = parseInt(req.params.id);
-    if (isNaN(followingId)) {
-      return res.status(400).json({ error: "Invalid user ID" });
+    // Prevent users from following themselves
+    if (userId === followingId) {
+      return res.status(400).json({ 
+        message: "No puedes seguirte a ti mismo.",
+        code: "CANNOT_FOLLOW_SELF"
+      });
     }
 
     // Get Socket.IO instance from app
@@ -56,18 +69,18 @@ router.post(
 
 router.delete(
   "/:id/follow",
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para dejar de seguir a un usuario.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
     
     const userId = session.userId;
-
-    const followingId = parseInt(req.params.id);
-    if (isNaN(followingId)) {
-      return res.status(400).json({ error: "Invalid user ID" });
-    }
+    const followingId = req.params.id as unknown as number;
 
     const result = await unfollowUser({
       followerId: userId,
@@ -80,26 +93,33 @@ router.delete(
 
 router.get(
   "/:id/followers",
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para ver los seguidores.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
     
     const userId = session.userId;
-
-    const targetUserId = parseInt(req.params.id);
-    if (isNaN(targetUserId)) {
-      return res.status(400).json({ error: "Invalid user ID" });
-    }
-
+    const targetUserId = req.params.id as unknown as number;
     const { cursor, limit } = req.query;
+
+    const parsedLimit = limit ? parseInt(limit as string, 10) : undefined;
+    if (limit && (isNaN(parsedLimit!) || parsedLimit! < 1)) {
+      return res.status(400).json({ 
+        message: "El límite debe ser un número positivo.",
+        code: "INVALID_LIMIT"
+      });
+    }
 
     const result = await getFollowers({
       userId: targetUserId,
       requesterId: userId,
       cursor: cursor as string | undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
+      limit: parsedLimit,
     });
 
     res.json(result);
@@ -108,26 +128,33 @@ router.get(
 
 router.get(
   "/:id/following",
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para ver a quién sigue un usuario.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
     
     const userId = session.userId;
-
-    const targetUserId = parseInt(req.params.id);
-    if (isNaN(targetUserId)) {
-      return res.status(400).json({ error: "Invalid user ID" });
-    }
-
+    const targetUserId = req.params.id as unknown as number;
     const { cursor, limit } = req.query;
+
+    const parsedLimit = limit ? parseInt(limit as string, 10) : undefined;
+    if (limit && (isNaN(parsedLimit!) || parsedLimit! < 1)) {
+      return res.status(400).json({ 
+        message: "El límite debe ser un número positivo.",
+        code: "INVALID_LIMIT"
+      });
+    }
 
     const result = await getFollowing({
       userId: targetUserId,
       requesterId: userId,
       cursor: cursor as string | undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
+      limit: parsedLimit,
     });
 
     res.json(result);
@@ -136,22 +163,19 @@ router.get(
 
 router.get(
   "/suggest",
+  validateRequest(searchQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para buscar usuarios.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const { q, limit } = req.query;
-    
-    if (!q || typeof q !== 'string') {
-      return res.status(400).json({ error: "Query parameter 'q' is required" });
-    }
+    const { q, limit } = req.query as { q: string; limit: number };
 
-    const results = await suggestUsers(
-      q,
-      limit ? parseInt(limit as string) : 10
-    );
+    const results = await suggestUsers(q, limit || 10);
 
     res.json(results);
   })
@@ -187,26 +211,33 @@ router.get(
 
 router.get(
   "/:id/posts",
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para ver los posts de un usuario.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
     
     const userId = session.userId;
-
-    const targetUserId = parseInt(req.params.id);
-    if (isNaN(targetUserId)) {
-      return res.status(400).json({ error: "Invalid user ID" });
-    }
-
+    const targetUserId = req.params.id as unknown as number;
     const { cursor, limit } = req.query;
+
+    const parsedLimit = limit ? parseInt(limit as string, 10) : undefined;
+    if (limit && (isNaN(parsedLimit!) || parsedLimit! < 1)) {
+      return res.status(400).json({ 
+        message: "El límite debe ser un número positivo.",
+        code: "INVALID_LIMIT"
+      });
+    }
 
     const result = await getUserPosts({
       userId: targetUserId,
       requesterId: userId,
       cursor: cursor as string | undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
+      limit: parsedLimit,
     });
 
     res.json(result);

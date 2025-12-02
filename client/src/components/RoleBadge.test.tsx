@@ -51,10 +51,10 @@ describe("RoleBadge", () => {
       render(<RoleBadge role="legacy" />);
       const badge = screen.getByText("Legacy");
       expect(badge).toBeInTheDocument();
-      // Legacy has gradient background
-      expect(badge).toHaveStyle({
-        background: expect.stringContaining("gradient"),
-      });
+      // Legacy has gradient background in style attribute
+      expect(badge).toHaveAttribute("style");
+      const styleAttr = badge.getAttribute("style");
+      expect(styleAttr).toContain("gradient");
     });
   });
 });

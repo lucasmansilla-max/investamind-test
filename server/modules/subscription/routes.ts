@@ -14,6 +14,12 @@ import {
 } from "../../services/subscriptionService";
 import { storage } from "../../storage";
 import { canAccessCourses, canViewTradingAlerts, hasPremiumAccess } from "../../utils/roles";
+import {
+  upgradeSubscriptionSchema,
+  idParamSchema,
+  validateRequest,
+} from "../../utils/validation";
+import { z } from "zod";
 
 const router = Router();
 
@@ -58,20 +64,21 @@ router.post(
 router.post(
   "/upgrade",
   requireAuth,
+  validateRequest(upgradeSubscriptionSchema),
   asyncHandler(async (req, res) => {
     if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para actualizar tu suscripción.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const { planType } = req.body; // 'premium_monthly' or 'premium_yearly'
-    if (!planType || (planType !== "premium_monthly" && planType !== "premium_yearly")) {
-      return res.status(400).json({ message: "Invalid plan type" });
-    }
+    const { planType } = req.body;
 
     const subscription = await upgradeSubscription(req.user.id, planType);
     res.json({
       subscription,
-      message: "Subscription upgraded successfully",
+      message: "Suscripción actualizada exitosamente",
     });
   })
 );
@@ -119,12 +126,18 @@ router.post(
   "/admin/beta-users/grant-access",
   requireAuth,
   requireAdmin,
+  validateRequest(z.object({
+    userId: z.number().int().positive('El ID de usuario debe ser un número positivo'),
+  })),
   asyncHandler(async (req, res) => {
     const { userId } = req.body;
 
     const user = await storage.getUser(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ 
+        message: "El usuario solicitado no fue encontrado.",
+        code: "USER_NOT_FOUND"
+      });
     }
 
     await storage.updateUser(userId, {
@@ -133,7 +146,7 @@ router.post(
       subscriptionStatus: "premium",
     });
 
-    res.json({ message: "Beta access granted successfully" });
+    res.json({ message: "Acceso beta otorgado exitosamente" });
   })
 );
 

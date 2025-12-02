@@ -1,7 +1,11 @@
 import { Router, type Request } from "express";
 import { asyncHandler } from "../../middlewares/error";
 import { createComment, getComments } from "./service";
-import { z } from "zod";
+import {
+  createCommentSchema,
+  idParamSchema,
+  validateRequest,
+} from "../../utils/validation";
 
 const router = Router();
 
@@ -22,28 +26,19 @@ function getSession(req: Request): { userId: number } | null {
 // POST /api/posts/:id/comments - Create a comment
 router.post(
   "/:id/comments",
+  validateRequest(idParamSchema, 'params'),
+  validateRequest(createCommentSchema),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para crear un comentario.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const postId = parseInt(req.params.id);
-    if (isNaN(postId)) {
-      return res.status(400).json({ error: "Invalid post ID" });
-    }
-
-    const bodySchema = z.object({
-      body: z.string().min(1).max(1000),
-      parentCommentId: z.number().optional(),
-    });
-
-    const result = bodySchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ error: result.error.errors[0].message });
-    }
-
-    const { body, parentCommentId } = result.data;
+    const postId = req.params.id as unknown as number;
+    const { body, parentCommentId } = req.body;
 
     const comment = await createComment({
       postId,
@@ -60,33 +55,45 @@ router.post(
 // GET /api/posts/:id/comments - Get comments for a post
 router.get(
   "/:id/comments",
+  validateRequest(idParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     const session = getSession(req);
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para ver los comentarios.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    const postId = parseInt(req.params.id);
-    if (isNaN(postId)) {
-      return res.status(400).json({ error: "Invalid post ID" });
-    }
-
+    const postId = req.params.id as unknown as number;
     const { parentId, cursor, limit } = req.query;
 
     // Parse parentId - can be null (string "null" or undefined) or a number
     let parsedParentId: number | null = null;
     if (parentId && parentId !== "null") {
-      parsedParentId = parseInt(parentId as string);
-      if (isNaN(parsedParentId)) {
-        return res.status(400).json({ error: "Invalid parent comment ID" });
+      const parsed = parseInt(parentId as string, 10);
+      if (isNaN(parsed)) {
+        return res.status(400).json({ 
+          message: "El ID del comentario padre no es válido.",
+          code: "INVALID_PARENT_COMMENT_ID"
+        });
       }
+      parsedParentId = parsed;
+    }
+
+    const parsedLimit = limit ? parseInt(limit as string, 10) : undefined;
+    if (limit && (isNaN(parsedLimit!) || parsedLimit! < 1)) {
+      return res.status(400).json({ 
+        message: "El límite debe ser un número positivo.",
+        code: "INVALID_LIMIT"
+      });
     }
 
     const result = await getComments({
       postId,
       parentId: parsedParentId,
       cursor: cursor as string | undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
+      limit: parsedLimit,
       requesterId: session.userId,
     });
 

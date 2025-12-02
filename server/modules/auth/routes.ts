@@ -14,6 +14,14 @@ import {
 } from "../../services/authService";
 import { storage } from "../../storage";
 import { sessions } from "../../middlewares/auth";
+import {
+  signupSchema,
+  signinSchema,
+  resetPasswordSchema,
+  updateUserSchema,
+  validateRequest,
+} from "../../utils/validation";
+import { z } from "zod";
 
 const router = Router();
 
@@ -22,6 +30,7 @@ const router = Router();
  */
 router.post(
   "/signup",
+  validateRequest(signupSchema),
   asyncHandler(async (req, res) => {
     const result = await signup(req.body);
     res.cookie("sessionId", result.sessionId, { httpOnly: true });
@@ -42,6 +51,7 @@ router.post(
  */
 router.post(
   "/signin",
+  validateRequest(signinSchema),
   asyncHandler(async (req, res) => {
     const result = await signin(req.body);
     res.cookie("sessionId", result.sessionId, { httpOnly: true });
@@ -134,12 +144,16 @@ router.get(
 router.patch(
   "/user",
   requireAuth,
+  validateRequest(updateUserSchema),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para actualizar tu perfil.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
-    // Extract allowed fields from request body
+    // Extract allowed fields from request body (already validated and sanitized)
     const allowedFields = [
       "username",
       "firstName",
@@ -158,22 +172,14 @@ router.patch(
       }
     }
 
-    // Validate username if provided
-    if (updates.username !== undefined) {
-      if (typeof updates.username !== "string") {
-        return res.status(400).json({ message: "Username must be a string" });
-      }
-      if (updates.username.length > 30) {
-        return res
-          .status(400)
-          .json({ message: "Username must be 30 characters or less" });
-      }
-      // Check if username is already taken
-      if (updates.username) {
-        const existingUser = await storage.getUserByUsername?.(updates.username);
-        if (existingUser && existingUser.id !== req.user.id) {
-          return res.status(400).json({ message: "Username already taken" });
-        }
+    // Check if username is already taken
+    if (updates.username !== undefined && updates.username) {
+      const existingUser = await storage.getUserByUsername?.(updates.username);
+      if (existingUser && existingUser.id !== req.user.id) {
+        return res.status(400).json({ 
+          message: "Este nombre de usuario ya está en uso. Por favor, elige otro.",
+          code: "USERNAME_TAKEN"
+        });
       }
     }
 
@@ -204,17 +210,20 @@ router.patch(
 router.patch(
   "/update-experience",
   requireAuth,
+  validateRequest(z.object({
+    experienceLevel: z.enum(['beginner', 'intermediate', 'advanced'], {
+      errorMap: () => ({ message: 'El nivel de experiencia debe ser: beginner, intermediate o advanced' }),
+    }),
+  })),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para actualizar tu nivel de experiencia.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
     const { experienceLevel } = req.body;
-    if (!experienceLevel) {
-      return res
-        .status(400)
-        .json({ message: "Experience level is required" });
-    }
 
     const updatedUser = await storage.updateUser(req.user.id, {
       experienceLevel,
@@ -239,17 +248,20 @@ router.patch(
 router.patch(
   "/update-investment-style",
   requireAuth,
+  validateRequest(z.object({
+    investmentStyle: z.enum(['conservative', 'moderate', 'aggressive'], {
+      errorMap: () => ({ message: 'El estilo de inversión debe ser: conservative, moderate o aggressive' }),
+    }),
+  })),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ 
+        message: "Debes iniciar sesión para actualizar tu estilo de inversión.",
+        code: "AUTHENTICATION_REQUIRED"
+      });
     }
 
     const { investmentStyle } = req.body;
-    if (!investmentStyle) {
-      return res
-        .status(400)
-        .json({ message: "Investment style is required" });
-    }
 
     const updatedUser = await storage.updateUser(req.user.id, {
       investmentStyle,
@@ -276,6 +288,9 @@ router.patch(
  */
 router.post(
   "/forgot-password",
+  validateRequest(z.object({
+    email: z.string().email('El email proporcionado no es válido'),
+  })),
   asyncHandler(async (req, res) => {
     const { email } = req.body;
 
@@ -291,7 +306,7 @@ router.post(
     // Always return success message (security best practice)
     res.json({
       message:
-        "If an account with that email exists, a password reset link has been sent.",
+        "Si existe una cuenta con ese email, se ha enviado un enlace para restablecer la contraseña.",
     });
   })
 );
@@ -301,11 +316,12 @@ router.post(
  */
 router.post(
   "/reset-password",
+  validateRequest(resetPasswordSchema),
   asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body;
     await resetPassword(token, newPassword);
     res.json({
-      message: "Password has been reset successfully",
+      message: "La contraseña ha sido restablecida exitosamente",
     });
   })
 );

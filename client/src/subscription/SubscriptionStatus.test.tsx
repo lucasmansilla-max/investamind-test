@@ -23,6 +23,16 @@ vi.mock("@/hooks/use-toast", () => ({
   }),
 }));
 
+// Mock useQuery
+const mockUseQuery = vi.fn();
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual("@tanstack/react-query");
+  return {
+    ...actual,
+    useQuery: (options: any) => mockUseQuery(options),
+  };
+});
+
 describe("SubscriptionStatus", () => {
   let queryClient: QueryClient;
 
@@ -41,15 +51,14 @@ describe("SubscriptionStatus", () => {
     component: React.ReactElement,
     subscriptionData: any = null
   ) => {
-    const ReactQuery = require("@tanstack/react-query");
-    vi.spyOn(ReactQuery, "useQuery").mockReturnValue({
+    mockUseQuery.mockReturnValue({
       data: subscriptionData,
       isLoading: false,
       error: null,
       isError: false,
       isSuccess: true,
       refetch: vi.fn(),
-    } as any);
+    });
 
     return render(
       <QueryClientProvider client={queryClient}>
@@ -155,7 +164,8 @@ describe("SubscriptionStatus", () => {
 
       renderWithQueryClient(<SubscriptionStatus />, trialSubscription);
 
-      expect(screen.getByText("Free Trial")).toBeInTheDocument();
+      // When there's a planType, it shows the plan name, not "Free Trial"
+      expect(screen.getByText("Premium Monthly")).toBeInTheDocument();
       expect(screen.getByText(/days left in your free trial/i)).toBeInTheDocument();
     });
 

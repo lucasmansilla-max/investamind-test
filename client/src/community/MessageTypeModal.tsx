@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { X, Lock } from "lucide-react";
+import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/language-context";
@@ -190,7 +190,7 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-5 overflow-y-auto"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative">
+      <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative" role="dialog">
         {/* Header */}
         <div className="sticky top-0 bg-white px-6 py-5 border-b border-gray-100 rounded-t-3xl z-10">
           <h2 className="text-xl font-bold text-center text-brand-dark-green">
@@ -206,22 +206,12 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
 
         {/* Message Type Grid */}
         <div className="grid grid-cols-2 gap-4 p-6 pb-6">
-          {messageTypes.map((type) => {
-            const isLocked = (type.id === 'signal' && !canCreateTradingAlerts()) || 
-                           (type.id === 'advertisement' && !isAdmin());
-            const isAvailable = availableMessageTypes.some(t => t.id === type.id);
-            
+          {availableMessageTypes.map((type) => {
             return (
             <div
               key={type.id}
-              onClick={() => !isLocked && handleSelectType(type)}
-              className={`bg-white border-2 rounded-2xl p-5 text-center transition-all duration-300 min-h-[140px] flex flex-col justify-between ${
-                isLocked 
-                  ? 'border-gray-200 opacity-60 cursor-not-allowed' 
-                  : isAvailable
-                  ? 'border-gray-200 cursor-pointer hover:border-brand-orange hover:-translate-y-1 hover:shadow-lg'
-                  : 'border-gray-200 opacity-40 cursor-not-allowed'
-              }`}
+              onClick={() => handleSelectType(type)}
+              className="bg-white border-2 rounded-2xl p-5 text-center transition-all duration-300 min-h-[140px] flex flex-col justify-between border-gray-200 cursor-pointer hover:border-brand-orange hover:-translate-y-1 hover:shadow-lg"
             >
               {/* Icon Container */}
               <div 
@@ -251,19 +241,16 @@ export default function MessageTypeModal({ isOpen, onClose, onSelectType }: Mess
               <div className="flex-grow">
                 <div className="font-bold text-sm text-brand-dark-green mb-2 leading-tight flex items-center justify-center gap-1">
                   {t(`community.messageTypes.${type.id}`) || type.name}
-                  {isLocked && <Lock className="w-3 h-3 text-gray-400" />}
                 </div>
                 <div className="text-xs text-gray-600 mb-3 leading-relaxed">
-                  {isLocked ? t("community.premiumRequired") : getTranslatedDescription(type.id, t)}
+                  {getTranslatedDescription(type.id, t)}
                 </div>
-                {!isLocked && (
-                  <div 
-                    className="inline-block px-3 py-1 rounded-lg text-xs font-bold text-white"
-                    style={{ backgroundColor: type.color }}
-                  >
-                    +{type.xpReward} XP
-                  </div>
-                )}
+                <div 
+                  className="inline-block px-3 py-1 rounded-lg text-xs font-bold text-white"
+                  style={{ backgroundColor: type.color }}
+                >
+                  +{type.xpReward} XP
+                </div>
               </div>
             </div>
           );

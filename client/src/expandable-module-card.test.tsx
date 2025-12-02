@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "@testing-library/jest-dom/vitest";
 import ExpandableModuleCard from "./expandable-module-card";
 
 // Mock wouter
+const mockSetLocation = vi.fn();
+const mockUseLocation = vi.fn(() => ["/", mockSetLocation]);
 vi.mock("wouter", () => ({
-  useLocation: () => ["/", vi.fn()],
+  useLocation: () => mockUseLocation(),
 }));
 
 // Mock hooks
+const mockUseHasPremiumAccess = vi.fn();
 vi.mock("@/hooks/use-subscription-status", () => ({
-  useHasPremiumAccess: vi.fn(),
+  useHasPremiumAccess: () => mockUseHasPremiumAccess(),
 }));
 
 describe("ExpandableModuleCard", () => {
@@ -51,8 +55,7 @@ describe("ExpandableModuleCard", () => {
     component: React.ReactElement,
     hasPremiumAccess = false
   ) => {
-    const { useHasPremiumAccess } = require("@/hooks/use-subscription-status");
-    vi.mocked(useHasPremiumAccess).mockReturnValue({
+    mockUseHasPremiumAccess.mockReturnValue({
       hasPremiumAccess,
       subscriptionData: {
         role: hasPremiumAccess ? "premium" : "free",
@@ -115,8 +118,7 @@ describe("ExpandableModuleCard", () => {
     });
 
     it("should allow access to all modules for admin users", () => {
-      const { useHasPremiumAccess } = require("@/hooks/use-subscription-status");
-      vi.mocked(useHasPremiumAccess).mockReturnValue({
+      mockUseHasPremiumAccess.mockReturnValue({
         hasPremiumAccess: true,
         subscriptionData: { role: "admin" },
       });
@@ -227,16 +229,16 @@ describe("ExpandableModuleCard", () => {
       const card = screen.getByText("Introduction to Trading").closest("div");
       if (card) {
         fireEvent.click(card);
-        // Should show lessons list
-        expect(screen.getByText(/Lessons/i)).toBeInTheDocument();
+        // Should show lessons list - use getAllByText since there may be multiple instances
+        const lessonsElements = screen.getAllByText(/Lessons/i);
+        expect(lessonsElements.length).toBeGreaterThan(0);
       }
     });
 
     it("should redirect to pricing when clicking locked module (free users)", () => {
       const module2 = { ...mockModule, id: 2 };
-      const mockSetLocation = vi.fn();
-      const { useLocation } = require("wouter");
-      vi.mocked(useLocation).mockReturnValue(["/", mockSetLocation]);
+      const localMockSetLocation = vi.fn();
+      mockUseLocation.mockReturnValue(["/", localMockSetLocation]);
 
       renderWithQueryClient(
         <ExpandableModuleCard
@@ -249,7 +251,7 @@ describe("ExpandableModuleCard", () => {
       const card = screen.getByText("Introduction to Trading").closest("div");
       if (card) {
         fireEvent.click(card);
-        expect(mockSetLocation).toHaveBeenCalledWith("/pricing");
+        expect(localMockSetLocation).toHaveBeenCalledWith("/pricing");
       }
     });
   });

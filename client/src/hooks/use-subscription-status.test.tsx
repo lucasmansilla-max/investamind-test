@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +8,9 @@ import { useSubscriptionStatus, useHasPremiumAccess } from "./use-subscription-s
 vi.mock("@/lib/queryClient", () => ({
   apiRequest: vi.fn(),
 }));
+
+import { apiRequest } from "@/lib/queryClient";
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("useSubscriptionStatus", () => {
   let queryClient: QueryClient;
@@ -27,8 +31,7 @@ describe("useSubscriptionStatus", () => {
   );
 
   it("should return subscription status data", async () => {
-    const { apiRequest } = require("@/lib/queryClient");
-    vi.mocked(apiRequest).mockResolvedValue({
+    mockApiRequest.mockResolvedValue({
       ok: true,
       json: async () => ({
         role: "premium",
@@ -38,7 +41,7 @@ describe("useSubscriptionStatus", () => {
           status: "active",
         },
       }),
-    });
+    } as Response);
 
     const { result } = renderHook(() => useSubscriptionStatus(), { wrapper });
 
@@ -51,8 +54,7 @@ describe("useSubscriptionStatus", () => {
   });
 
   it("should return free role on error", async () => {
-    const { apiRequest } = require("@/lib/queryClient");
-    vi.mocked(apiRequest).mockRejectedValue(new Error("Network error"));
+    mockApiRequest.mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useSubscriptionStatus(), { wrapper });
 
@@ -84,14 +86,13 @@ describe("useHasPremiumAccess", () => {
 
   describe("Premium access by role", () => {
     it("should return true for admin role", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "admin",
           subscriptionStatus: "free",
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -101,14 +102,13 @@ describe("useHasPremiumAccess", () => {
     });
 
     it("should return true for premium role", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "premium",
           subscriptionStatus: "premium",
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -118,14 +118,13 @@ describe("useHasPremiumAccess", () => {
     });
 
     it("should return true for legacy role", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "legacy",
           subscriptionStatus: "free",
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -135,14 +134,13 @@ describe("useHasPremiumAccess", () => {
     });
 
     it("should return false for free role", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "free",
           subscriptionStatus: "free",
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -154,14 +152,13 @@ describe("useHasPremiumAccess", () => {
 
   describe("Premium access by subscription status", () => {
     it("should return true for premium subscription status", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "free",
           subscriptionStatus: "premium",
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -171,14 +168,13 @@ describe("useHasPremiumAccess", () => {
     });
 
     it("should return true for trial subscription status", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "free",
           subscriptionStatus: "trial",
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -190,15 +186,14 @@ describe("useHasPremiumAccess", () => {
 
   describe("Premium access for beta users", () => {
     it("should return true for beta users", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => ({
           role: "free",
           subscriptionStatus: "free",
           isBetaUser: true,
         }),
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -210,11 +205,10 @@ describe("useHasPremiumAccess", () => {
 
   describe("Edge cases", () => {
     it("should return false when subscription data is null", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      mockApiRequest.mockResolvedValue({
         ok: true,
         json: async () => null,
-      });
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
@@ -224,11 +218,12 @@ describe("useHasPremiumAccess", () => {
     });
 
     it("should return false when subscription data is undefined", async () => {
-      const { apiRequest } = require("@/lib/queryClient");
-      vi.mocked(apiRequest).mockResolvedValue({
+      // React Query doesn't allow undefined, so we return an empty object instead
+      // which is equivalent to undefined in this context
+      mockApiRequest.mockResolvedValue({
         ok: true,
-        json: async () => undefined,
-      });
+        json: async () => ({}),
+      } as Response);
 
       const { result } = renderHook(() => useHasPremiumAccess(), { wrapper });
 
