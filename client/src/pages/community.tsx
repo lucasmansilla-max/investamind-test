@@ -11,6 +11,7 @@ import BadgeProgressDashboard from "@/badges/BadgeProgressDashboard";
 import ReferralDashboard from "@/referrals/ReferralDashboard";
 import BottomNavigation from "@/bottom-navigation";
 import RoleBadge from "@/components/RoleBadge";
+import PremiumGate from "@/components/upgrade-prompts/PremiumGate";
 
 export default function Community() {
   const [, setLocation] = useLocation();
@@ -32,7 +33,7 @@ export default function Community() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h1 className="text-xl font-bold text-brand-dark-green">Community</h1>
+              <h1 className="text-xl font-bold text-brand-dark-green">{t("community.title")}</h1>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -57,7 +58,7 @@ export default function Community() {
                   className="flex items-center space-x-2 py-3 data-[state=active]:border-b-2 data-[state=active]:border-brand-orange data-[state=active]:bg-transparent rounded-none text-brand-dark-green"
                 >
                   <Users className="w-4 h-4" />
-                  <span>Feed</span>
+                  <span>{t("community.feed")}</span>
                 </TabsTrigger>
                 
                 <TabsTrigger 
@@ -65,7 +66,7 @@ export default function Community() {
                   className="flex items-center space-x-2 py-3 data-[state=active]:border-b-2 data-[state=active]:border-brand-orange data-[state=active]:bg-transparent rounded-none text-brand-dark-green"
                 >
                   <Award className="w-4 h-4" />
-                  <span>Badges</span>
+                  <span>{t("community.badges")}</span>
                 </TabsTrigger>
                 
                 <TabsTrigger 
@@ -73,7 +74,7 @@ export default function Community() {
                   className="flex items-center space-x-2 py-3 data-[state=active]:border-b-2 data-[state=active]:border-brand-orange data-[state=active]:bg-transparent rounded-none text-brand-dark-green"
                 >
                   <Gift className="w-4 h-4" />
-                  <span>Referrals</span>
+                  <span>{t("community.referrals")}</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -81,7 +82,9 @@ export default function Community() {
             {/* Tab Content */}
             <div className="p-4">
               <TabsContent value="feed" className="mt-0">
-                <CommunityFeed />
+                <PremiumGate>
+                  <CommunityFeed />
+                </PremiumGate>
               </TabsContent>
               
               <TabsContent value="badges" className="mt-0">

@@ -249,8 +249,8 @@ router.patch(
   "/update-investment-style",
   requireAuth,
   validateRequest(z.object({
-    investmentStyle: z.enum(['conservative', 'moderate', 'aggressive'], {
-      errorMap: () => ({ message: 'El estilo de inversión debe ser: conservative, moderate o aggressive' }),
+    investmentStyle: z.enum(['day-swing', 'long-term', 'both'], {
+      errorMap: () => ({ message: 'El estilo de inversión debe ser: day-swing, long-term o both' }),
     }),
   })),
   asyncHandler(async (req, res) => {

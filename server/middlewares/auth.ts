@@ -12,6 +12,7 @@ import {
   canCreateTradingAlerts,
   canViewTradingAlerts,
   canAccessCourses,
+  isFreeUser,
 } from "../utils/roles";
 
 // Session storage (temporary until centralized)
@@ -214,6 +215,30 @@ export function requireCourses(
     res.status(403).json({
       message: "Premium subscription required to access courses",
       requiresUpgrade: true,
+    });
+    return;
+  }
+
+  next();
+}
+
+/**
+ * Require free user (restrict access to premium users)
+ */
+export function requireFree(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!req.user) {
+    res.status(401).json({ message: "Not authenticated" });
+    return;
+  }
+
+  if (!isFreeUser(req.user)) {
+    res.status(403).json({
+      message: "Esta sección está disponible solo para usuarios free",
+      requiresFree: true,
     });
     return;
   }

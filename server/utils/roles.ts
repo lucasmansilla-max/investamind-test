@@ -73,6 +73,19 @@ export function canCreateTradingAlerts(user: UserWithRole | null | undefined): b
 }
 
 /**
+ * Check if user is a free user (does not have premium access)
+ */
+export function isFreeUser(user: UserWithRole | null | undefined): boolean {
+  if (!user) return false;
+  
+  // Admin can access everything, so they're not considered "free only"
+  if (user.role === 'admin') return false;
+  
+  // If user has premium access, they're not free
+  return !hasPremiumAccess(user);
+}
+
+/**
  * Get user role display info with styling information
  */
 export function getRoleDisplayInfo(role: string | null | undefined): RoleDisplayInfo {

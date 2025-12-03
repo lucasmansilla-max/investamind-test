@@ -280,7 +280,7 @@ export const updateUserSchema = z.object({
   avatarUrl: urlSchema,
   selectedLanguage: z.enum(['es', 'en']).optional(),
   experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-  investmentStyle: z.enum(['conservative', 'moderate', 'aggressive']).optional(),
+  investmentStyle: z.enum(['day-swing', 'long-term', 'both']).optional(),
 });
 
 /**

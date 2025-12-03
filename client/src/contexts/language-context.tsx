@@ -223,6 +223,10 @@ const translations = {
     },
     // Community
     community: {
+      title: "Community",
+      feed: "Feed",
+      badges: "Badges",
+      referrals: "Referrals",
       shareWithCommunity: "Share with the Community",
       choosePostType: "Choose your post type to share market insights, predictions, or ask questions",
       createPost: "Create Post",
@@ -257,6 +261,10 @@ const translations = {
       showLess: "Show less",
       choosePostTypeTitle: "Choose Post Type",
       premiumRequired: "Premium required",
+      premiumSectionTitle: "Premium Community Section",
+      premiumSectionDescription: "The Community section is exclusively available for premium users.",
+      upgradeToPremium: "Upgrade to Premium",
+      startTrial: "Start with a 7-day free trial • No credit card required",
       justNow: "Just now",
       minutesAgo: "{minutes}m ago",
       hoursAgo: "{hours}h ago",
@@ -492,6 +500,10 @@ const translations = {
     },
     // Comunidad
     community: {
+      title: "Comunidad",
+      feed: "Feed",
+      badges: "Insignias",
+      referrals: "Referidos",
       shareWithCommunity: "Compartir con la Comunidad",
       choosePostType: "Elige tu tipo de publicación para compartir insights del mercado, predicciones o hacer preguntas",
       createPost: "Crear Publicación",
@@ -526,6 +538,10 @@ const translations = {
       showLess: "Mostrar menos",
       choosePostTypeTitle: "Elegir Tipo de Publicación",
       premiumRequired: "Premium requerido",
+      premiumSectionTitle: "Sección de Community Premium",
+      premiumSectionDescription: "La sección de Community está disponible exclusivamente para usuarios premium.",
+      upgradeToPremium: "Actualizar a Premium",
+      startTrial: "Comienza con una prueba gratuita de 7 días • No se requiere tarjeta de crédito",
       justNow: "Ahora mismo",
       minutesAgo: "hace {minutes}m",
       hoursAgo: "hace {hours}h",

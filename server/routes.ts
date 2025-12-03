@@ -6,6 +6,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { asyncHandler } from "./middlewares/error";
+import { requireAuth, requirePremium } from "./middlewares/auth";
 import { storage } from "./storage";
 import { insertUserProgressSchema, insertNotificationSchema } from "@shared/schema";
 import { loadPosts, savePosts, type Post } from "./postsStore";
@@ -28,7 +29,8 @@ import adminRouter from "./modules/admin/routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Legacy endpoints for mobile app (Vibecode) - kept for backward compatibility
-  app.get("/posts", (req, res) => {
+  // Restricted to premium users only
+  app.get("/posts", requireAuth, requirePremium, (req, res) => {
     try {
       const posts = loadPosts();
       // Sort by createdAt descending (newest first)
@@ -43,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/posts", (req, res) => {
+  app.post("/posts", requireAuth, requirePremium, (req, res) => {
     try {
       const body = req.body;
 

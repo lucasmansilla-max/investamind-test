@@ -5,7 +5,7 @@
 
 import { Router } from "express";
 import { asyncHandler } from "../../middlewares/error";
-import { requireAuth } from "../../middlewares/auth";
+import { requireAuth, requirePremium } from "../../middlewares/auth";
 import { storage } from "../../storage";
 import { parsePaginationParams, buildPaginationResult } from "../../utils/pagination";
 import { desc, isNotNull } from "drizzle-orm";
@@ -20,11 +20,12 @@ const router = Router();
 
 /**
  * GET /api/community/posts
- * Get community posts with pagination and filtering
+ * Get community posts with pagination and filtering (premium users only)
  */
 router.get(
   "/posts",
   requireAuth,
+  requirePremium,
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -137,11 +138,12 @@ const createCommunityPostSchema = z.object({
 
 /**
  * POST /api/community/posts
- * Create a new community post
+ * Create a new community post (premium users only)
  */
 router.post(
   "/posts",
   requireAuth,
+  requirePremium,
   validateRequest(createCommunityPostSchema),
   asyncHandler(async (req, res) => {
     if (!req.user || !req.session) {

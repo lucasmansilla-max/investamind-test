@@ -6,11 +6,13 @@
 import { Router, type Request, Response } from 'express';
 import * as postsService from './service';
 import { asyncHandler } from '../../middlewares/error';
+import { requireAuth, requirePremium } from '../../middlewares/auth';
 import commentsRouter from '../comments/routes';
 import { isAdmin } from '../../utils/roles';
 import { db } from '../../config/db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { storage } from '../../storage';
 import {
   createPostSchema,
   updatePostSchema,
@@ -40,14 +42,15 @@ function getSession(req: Request): { userId: number } | null {
 
 /**
  * POST /posts
- * Create a new post
+ * Create a new post (premium users only)
  */
 postsRouter.post(
   '/',
+  requireAuth,
+  requirePremium,
   validateRequest(createPostSchema),
   asyncHandler(async (req: Request, res: Response) => {
-    const session = getSession(req);
-    if (!session) {
+    if (!req.user || !req.session) {
       res.status(401).json({ 
         message: 'Debes iniciar sesión para crear un post.',
         code: 'AUTHENTICATION_REQUIRED'
@@ -61,7 +64,7 @@ postsRouter.post(
     const io = (req.app as any).io;
 
     const post = await postsService.createPost({
-      userId: session.userId,
+      userId: req.session.userId,
       body,
       imageUrl: imageUrl || undefined,
       messageType,
@@ -75,15 +78,16 @@ postsRouter.post(
 
 /**
  * PATCH /posts/:id
- * Update a post (owner only)
+ * Update a post (owner only, premium users only)
  */
 postsRouter.patch(
   '/:id',
+  requireAuth,
+  requirePremium,
   validateParam('id'),
   validateRequest(updatePostSchema),
   asyncHandler(async (req: Request, res: Response) => {
-    const session = getSession(req);
-    if (!session) {
+    if (!req.user || !req.session) {
       res.status(401).json({ 
         message: 'Debes iniciar sesión para actualizar un post.',
         code: 'AUTHENTICATION_REQUIRED'
@@ -94,7 +98,7 @@ postsRouter.patch(
     const postId = req.params.id as unknown as number;
   
     try {
-      const post = await postsService.updatePost(postId, session.userId, req.body);
+      const post = await postsService.updatePost(postId, req.session.userId, req.body);
       res.json(post);
     } catch (error: any) {
       if (error.message === 'Post not found or unauthorized') {
@@ -111,14 +115,15 @@ postsRouter.patch(
 
 /**
  * DELETE /posts/:id
- * Soft delete a post (owner only)
+ * Soft delete a post (owner only, premium users only)
  */
 postsRouter.delete(
   '/:id',
+  requireAuth,
+  requirePremium,
   validateParam('id'),
   asyncHandler(async (req: Request, res: Response) => {
-    const session = getSession(req);
-    if (!session) {
+    if (!req.user || !req.session) {
       res.status(401).json({ 
         message: 'Debes iniciar sesión para eliminar un post.',
         code: 'AUTHENTICATION_REQUIRED'
@@ -129,7 +134,7 @@ postsRouter.delete(
     const postId = req.params.id as unknown as number;
   
     try {
-      const post = await postsService.deletePost(postId, session.userId);
+      const post = await postsService.deletePost(postId, req.session.userId);
       res.json({ message: 'Post eliminado exitosamente', post });
     } catch (error: any) {
       if (error.message === 'Post not found or unauthorized') {
@@ -146,10 +151,12 @@ postsRouter.delete(
 
 /**
  * GET /feed/global
- * Get global feed with sorting and pagination
+ * Get global feed with sorting and pagination (premium users only)
  */
 postsRouter.get(
   '/feed/global',
+  requireAuth,
+  requirePremium,
   validateRequest(feedQuerySchema, 'query'),
   asyncHandler(async (req: Request, res: Response) => {
     const session = getSession(req);
@@ -177,6 +184,7 @@ postsRouter.get(
 /**
  * GET /posts/:id
  * Get a single post (with Open Graph meta tags for sharing)
+ * Note: Allows unauthenticated access for OG crawlers, but authenticated users must be premium
  */
 postsRouter.get(
   '/:id',
@@ -187,6 +195,24 @@ postsRouter.get(
   // Allow unauthenticated access for OG crawlers
   const session = getSession(req);
   const userId = session?.userId || 0;
+  
+  // If user is authenticated, check if they're premium (for API requests)
+  // For HTML requests (OG crawlers), skip this check
+  const acceptsHtml = req.accepts('html');
+  if (!acceptsHtml && session) {
+    // Get user to check if they're premium for API requests
+    const user = await storage.getUser(session.userId);
+    if (user) {
+      const { hasPremiumAccess } = await import('../../utils/roles');
+      if (!hasPremiumAccess(user)) {
+        res.status(403).json({
+          message: "Premium subscription required",
+          requiresUpgrade: true,
+        });
+        return;
+      }
+    }
+  }
 
   try {
     const post = await postsService.getPostById(postId, userId);
