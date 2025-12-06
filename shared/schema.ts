@@ -33,31 +33,50 @@ export const learningModules = pgTable("learning_modules", {
   titleEs: text("title_es"),
   description: text("description").notNull(),
   descriptionEs: text("description_es"),
-  content: text("content").notNull(),
-  contentEs: text("content_es"),
-  experienceLevel: text("experience_level").notNull(), // principiante, intermedio, avanzado
-  category: text("category").notNull(), // quick-start, core-modules
-  orderIndex: integer("order_index").notNull(),
-  estimatedMinutes: integer("estimated_minutes").default(10),
-  isLocked: boolean("is_locked").default(true),
-  quizQuestion: text("quiz_question"),
-  quizQuestionEs: text("quiz_question_es"),
-  quizOptions: jsonb("quiz_options").$type<string[]>(),
-  quizOptionsEs: jsonb("quiz_options_es").$type<string[]>(),
-  correctAnswer: text("correct_answer"),
-  correctAnswerEs: text("correct_answer_es"),
+  orderIndex: integer("order_index").notNull().unique(), // Unique order index
+  isPremium: boolean("is_premium").default(false), // Whether this module requires premium access
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Videos within a module
+export const moduleVideos = pgTable("module_videos", {
+  id: serial("id").primaryKey(),
+  moduleId: integer("module_id").references(() => learningModules.id, { onDelete: "cascade" }).notNull(),
+  videoUrl: text("video_url").notNull(), // YouTube video URL
+  title: text("title").notNull(), // Video title
+  titleEs: text("title_es"), // Video title in Spanish
+  description: text("description"), // Optional video description
+  descriptionEs: text("description_es"),
+  videoOrder: integer("video_order").notNull(), // Order within the module (1, 2, 3, ...)
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueModuleVideoOrder: unique().on(table.moduleId, table.videoOrder),
+}));
 
 export const userProgress = pgTable("user_progress", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
   moduleId: integer("module_id").references(() => learningModules.id).notNull(),
   completed: boolean("completed").default(false),
-  quizPassed: boolean("quiz_passed").default(false),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Progress for individual videos
+export const userVideoProgress = pgTable("user_video_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  videoId: integer("video_id").references(() => moduleVideos.id, { onDelete: "cascade" }).notNull(),
+  watchedSeconds: integer("watched_seconds").default(0), // Seconds watched
+  totalSeconds: integer("total_seconds"), // Total video duration
+  completionPercentage: integer("completion_percentage").default(0), // 0-100
+  completed: boolean("completed").default(false), // Video fully watched
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  uniqueUserVideo: unique().on(table.userId, table.videoId),
+}));
 
 export const marketRecaps = pgTable("market_recaps", {
   id: serial("id").primaryKey(),
@@ -217,13 +236,38 @@ export const insertUserSchema = createInsertSchema(users).pick({
   onboardingCompleted: true,
 });
 
-export const insertLearningModuleSchema = createInsertSchema(learningModules);
+export const insertLearningModuleSchema = createInsertSchema(learningModules).pick({
+  title: true,
+  titleEs: true,
+  description: true,
+  descriptionEs: true,
+  orderIndex: true,
+  isPremium: true,
+});
+
+export const insertModuleVideoSchema = createInsertSchema(moduleVideos).pick({
+  moduleId: true,
+  videoUrl: true,
+  title: true,
+  titleEs: true,
+  description: true,
+  descriptionEs: true,
+  videoOrder: true,
+});
+
+export const insertUserVideoProgressSchema = createInsertSchema(userVideoProgress).pick({
+  userId: true,
+  videoId: true,
+  watchedSeconds: true,
+  totalSeconds: true,
+  completionPercentage: true,
+  completed: true,
+});
 
 export const insertUserProgressSchema = createInsertSchema(userProgress).pick({
   userId: true,
   moduleId: true,
   completed: true,
-  quizPassed: true,
 });
 
 export const insertMarketRecapSchema = createInsertSchema(marketRecaps).pick({
@@ -246,6 +290,10 @@ export type User = typeof users.$inferSelect;
 
 export type InsertLearningModule = z.infer<typeof insertLearningModuleSchema>;
 export type LearningModule = typeof learningModules.$inferSelect;
+export type InsertModuleVideo = z.infer<typeof insertModuleVideoSchema>;
+export type ModuleVideo = typeof moduleVideos.$inferSelect;
+export type InsertUserVideoProgress = z.infer<typeof insertUserVideoProgressSchema>;
+export type UserVideoProgress = typeof userVideoProgress.$inferSelect;
 
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;

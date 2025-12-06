@@ -304,20 +304,32 @@ export default function ExpandableModuleCard({
                 ))}
               </div>
 
-              {/* Continue/Start Button */}
-              <div className="mt-4">
+              {/* Continue/Start Buttons */}
+              <div className="mt-4 space-y-2">
                 <Button 
                   className="w-full bg-brand-orange hover:bg-orange-600 text-white font-semibold py-3"
                   onClick={() => {
-                    const nextLesson = module.lessons.find(l => l.status !== "completed");
-                    if (nextLesson) {
-                      onLessonClick(module.id, nextLesson.id);
-                    }
+                    // Navigate directly to module page to see video and full content
+                    setLocation(`/module/${module.id}`);
                   }}
                 >
-                  {effectiveStatus === "completed" ? "Review Module" : "Continue Learning"}
+                  {effectiveStatus === "completed" ? "Ver Módulo Completo" : "Abrir Módulo"}
                   <Play className="w-4 h-4 ml-2" />
                 </Button>
+                {module.lessons.length > 0 && (
+                  <Button 
+                    variant="outline"
+                    className="w-full border-brand-dark-green text-brand-dark-green hover:bg-brand-light-green/10 font-semibold py-3"
+                    onClick={() => {
+                      const nextLesson = module.lessons.find(l => l.status !== "completed");
+                      if (nextLesson) {
+                        onLessonClick(module.id, nextLesson.id);
+                      }
+                    }}
+                  >
+                    Continuar con Lecciones
+                  </Button>
+                )}
               </div>
             </div>
           </div>

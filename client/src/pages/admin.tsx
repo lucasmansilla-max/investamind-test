@@ -8,38 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useLocation } from "wouter";
 import BottomNavigation from "@/bottom-navigation";
-// The original `ui/form` primitives are not present in this repo.
-// Provide lightweight fallbacks so the admin page can render without the missing module.
-// These wrappers aim to be non-intrusive: they render standard HTML elements and,
-// when a render-prop expecting `{ field }` is used, provide a minimal `field` object
-// so existing JSX like `({ field }) => <input {...field} />` still works without throwing.
-const Form: any = (props: any) => <form {...props} />;
-
-const FormControl: any = (props: any) => <div {...props} />;
-
-const FormField: any = ({ children, ...rest }: any) => {
-  // If the child is a function (render-prop) call it with a minimal `field` object.
-  if (typeof children === "function") {
-    const field = {
-      value: undefined,
-      onChange: (_: any) => {},
-      onBlur: () => {},
-      ref: () => {},
-      name: rest.name ?? undefined,
-    };
-    return <div {...rest}>{children({ field })}</div>;
-  }
-  return <div {...rest}>{children}</div>;
-};
-
-const FormItem: any = (props: any) => <div {...props} />;
-
-const FormLabel: any = (props: any) => <label {...props} />;
-
-const FormMessage: any = (props: any) => <div {...props} />;
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/ui/form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLearningModuleSchema, type InsertLearningModule, type LearningModule, type User } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,8 +26,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, BookOpen, Settings, Plus, Edit, Trash2, Crown, Shield, Activity, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
+const videoFormSchema = z.object({
+  videoUrl: z.string().url("Debe ser una URL válida de YouTube"),
+  title: z.string().min(1, "El título es requerido"),
+  titleEs: z.string().optional(),
+  description: z.string().optional(),
+  descriptionEs: z.string().optional(),
+  videoOrder: z.number().min(1, "El orden debe ser mayor a 0"),
+});
+
 const moduleFormSchema = insertLearningModuleSchema.extend({
-  quizOptions: z.array(z.string()).optional(),
+  videos: z.array(videoFormSchema).optional().default([]),
 });
 
 type ModuleForm = z.infer<typeof moduleFormSchema>;
@@ -77,15 +65,16 @@ export default function Admin() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: modules = [] } = useQuery<LearningModule[]>({
+  const { data: modules = [] } = useQuery<(LearningModule & { videos?: any[] })[]>({
     queryKey: ["/api/modules"],
     queryFn: async () => {
       try {
         const res = await apiRequest("GET", "/api/modules");
-        return (await res.json()) as LearningModule[];
+        const data = await res.json();
+        return data as (LearningModule & { videos?: any[] })[];
       } catch (err) {
         // Return empty list on error so downstream rendering doesn't break
-        return [] as LearningModule[];
+        return [] as (LearningModule & { videos?: any[] })[];
       }
     },
     retry: false,
@@ -109,34 +98,98 @@ export default function Admin() {
 
   const webhookLogs = webhookLogsData?.logs || [];
 
+  const [editingModuleId, setEditingModuleId] = useState<number | null>(null);
+  const [videoFormData, setVideoFormData] = useState({
+    videoUrl: "",
+    title: "",
+    titleEs: "",
+    description: "",
+    descriptionEs: "",
+    videoOrder: 1,
+  });
+
   const form = useForm<ModuleForm>({
     resolver: zodResolver(moduleFormSchema),
     defaultValues: {
       title: "",
       description: "",
-      content: "",
-      orderIndex: 0,
-      isLocked: true,
-      quizQuestion: "",
-      quizOptions: ["", "", "", ""],
-      correctAnswer: "",
+      orderIndex: 1,
+      isPremium: false,
+      videos: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "videos",
   });
 
   // Mutations
   const createModuleMutation = useMutation({
     mutationFn: async (data: ModuleForm) => {
-      // apiRequest accepts (method, url, data) — pass the body object directly
-      return apiRequest("POST", "/api/admin/modules", data);
+      const res = await apiRequest("POST", "/api/admin/modules", data);
+      return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/modules"] });
-      toast({ title: "Module created successfully!" });
-      form.reset();
+    onSuccess: async (module: any) => {
+      // Invalidate and refetch modules to get the full data with videos
+      await queryClient.invalidateQueries({ queryKey: ["/api/modules"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/modules"] });
+      toast({ title: "Módulo creado exitosamente!" });
+      form.reset({
+        title: "",
+        description: "",
+        orderIndex: 1,
+        isPremium: false,
+        videos: [],
+      });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to create module",
+        title: "Error al crear módulo",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Video mutations
+  const createVideoMutation = useMutation({
+    mutationFn: async ({ moduleId, data }: { moduleId: number; data: any }) => {
+      const res = await apiRequest("POST", `/api/admin/modules/${moduleId}/videos`, data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/modules"] });
+      toast({ title: "Video agregado exitosamente!" });
+      setVideoFormData({
+        videoUrl: "",
+        title: "",
+        titleEs: "",
+        description: "",
+        descriptionEs: "",
+        videoOrder: 1,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al agregar video",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteVideoMutation = useMutation({
+    mutationFn: async (videoId: number) => {
+      return apiRequest("DELETE", `/api/admin/videos/${videoId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/modules"] });
+      toast({ title: "Video eliminado exitosamente!" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al eliminar video",
         description: error.message,
         variant: "destructive",
       });
@@ -163,6 +216,15 @@ export default function Admin() {
 
   const onSubmit = (data: ModuleForm) => {
     createModuleMutation.mutate(data);
+  };
+
+  const onError = (errors: any) => {
+    console.log("🚀 ~ onError ~ errors:", errors);
+    toast({
+      title: "Validation Error",
+      description: "Please check the form fields and try again.",
+      variant: "destructive",
+    });
   };
 
   return (
@@ -288,7 +350,14 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        console.log("🔵 Form submit event triggered");
+                        form.handleSubmit(onSubmit, onError)(e);
+                      }} 
+                      className="space-y-4"
+                    >
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -343,42 +412,157 @@ export default function Admin() {
 
                       <FormField
                         control={form.control}
-                        name="content"
+                        name="isPremium"
                         render={({ field }: any) => (
-                          <FormItem>
-                            <FormLabel>Module Content</FormLabel>
+                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                             <FormControl>
-                              <Textarea 
-                                placeholder="Full module content..." 
-                                {...field} 
-                                rows={6}
+                              <input
+                                type="checkbox"
+                                checked={field.value || false}
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="w-4 h-4"
                               />
                             </FormControl>
+                            <FormLabel className="!mt-0">Contenido Premium</FormLabel>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="quizQuestion"
-                        render={({ field }: any) => (
-                          <FormItem>
-                            <FormLabel>Quiz Question (Optional)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="What is the main benefit of diversification?" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                      {/* Videos Section */}
+                      <div className="border-t pt-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-brand-dark-green">Videos del Módulo</h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => append({
+                              videoUrl: "",
+                              title: "",
+                              titleEs: "",
+                              description: "",
+                              descriptionEs: "",
+                              videoOrder: fields.length + 1,
+                            })}
+                            className="text-brand-orange border-brand-orange"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Agregar Video
+                          </Button>
+                        </div>
+
+                        {fields.length === 0 && (
+                          <p className="text-sm text-brand-brown text-center py-4 bg-gray-50 rounded-lg">
+                            No hay videos agregados. Haz clic en "Agregar Video" para agregar uno.
+                          </p>
                         )}
-                      />
+
+                        <div className="space-y-4">
+                          {fields.map((field, index) => (
+                            <div key={field.id} className="bg-gray-50 p-4 rounded-lg border space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-brand-dark-green">
+                                  Video {index + 1}
+                                </h4>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => remove(index)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <FormField
+                                  control={form.control}
+                                  name={`videos.${index}.videoUrl`}
+                                  render={({ field }: any) => (
+                                    <FormItem>
+                                      <FormLabel>URL de YouTube *</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="https://www.youtube.com/watch?v=..." {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`videos.${index}.title`}
+                                  render={({ field }: any) => (
+                                    <FormItem>
+                                      <FormLabel>Título *</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Título del video" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`videos.${index}.titleEs`}
+                                  render={({ field }: any) => (
+                                    <FormItem>
+                                      <FormLabel>Título (Español)</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Título en español (opcional)" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`videos.${index}.videoOrder`}
+                                  render={({ field }: any) => (
+                                    <FormItem>
+                                      <FormLabel>Orden</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          placeholder="1"
+                                          {...field}
+                                          onChange={(e) => field.onChange(parseInt(e.target.value) || index + 1)}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <FormField
+                                control={form.control}
+                                name={`videos.${index}.description`}
+                                render={({ field }: any) => (
+                                  <FormItem>
+                                    <FormLabel>Descripción</FormLabel>
+                                    <FormControl>
+                                      <Textarea
+                                        placeholder="Descripción del video (opcional)"
+                                        {...field}
+                                        rows={2}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
 
                       <Button 
                         type="submit" 
                         disabled={createModuleMutation.isPending}
-                        className="bg-brand-light-green hover:bg-brand-light-green/80 text-brand-dark-green font-semibold"
+                        className="bg-brand-light-green hover:bg-brand-light-green/80 text-brand-dark-green font-semibold w-full"
                       >
-                        {createModuleMutation.isPending ? "Creating..." : "Create Module"}
+                        {createModuleMutation.isPending ? "Creando..." : "Crear Módulo y Videos"}
                       </Button>
                     </form>
                   </Form>
@@ -390,33 +574,146 @@ export default function Admin() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-brand-dark-green">
                     <BookOpen className="h-5 w-5" />
-                    Existing Modules
+                    Módulos Existentes
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {modules.map((module: any) => (
-                      <div key={module.id} className="flex items-center justify-between p-4 border rounded-lg bg-white">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-brand-dark-green">{module.title}</h3>
-                          <p className="text-sm text-brand-brown">{module.description}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline">Order: {module.orderIndex}</Badge>
-                            <Badge variant={module.isLocked ? "secondary" : "default"}>
-                              {module.isLocked ? "Locked" : "Unlocked"}
-                            </Badge>
+                    {modules.map((module: any) => {
+                      const isExpanded = editingModuleId === module.id;
+                      const moduleVideos = module.videos || [];
+                      
+                      return (
+                        <div key={module.id} className="border rounded-lg bg-white">
+                          <div className="flex items-center justify-between p-4">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-brand-dark-green">{module.title}</h3>
+                              <p className="text-sm text-brand-brown">{module.description}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline">Orden: {module.orderIndex}</Badge>
+                                {module.isPremium && (
+                                  <Badge variant="outline" className="text-orange-600">
+                                    <Crown className="h-3 w-3 mr-1" />
+                                    Premium
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className="text-blue-600">
+                                  🎥 {moduleVideos.length} {moduleVideos.length === 1 ? 'video' : 'videos'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setEditingModuleId(isExpanded ? null : module.id)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                {isExpanded ? "Cerrar" : "Gestionar Videos"}
+                              </Button>
+                            </div>
                           </div>
+                          
+                          {/* Video Management Section */}
+                          {isExpanded && (
+                            <div className="border-t p-4 space-y-4 bg-gray-50">
+                              <h4 className="font-semibold text-brand-dark-green mb-3">
+                                Videos del Módulo
+                              </h4>
+                              
+                              {/* Add Video Form */}
+                              <div className="bg-white p-4 rounded-lg border space-y-3">
+                                <h5 className="font-medium text-brand-dark-green">Agregar Nuevo Video</h5>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <Input
+                                    placeholder="URL de YouTube"
+                                    value={videoFormData.videoUrl}
+                                    onChange={(e) => setVideoFormData({ ...videoFormData, videoUrl: e.target.value })}
+                                  />
+                                  <Input
+                                    placeholder="Título del video"
+                                    value={videoFormData.title}
+                                    onChange={(e) => setVideoFormData({ ...videoFormData, title: e.target.value })}
+                                  />
+                                  <Input
+                                    placeholder="Título (Español) - Opcional"
+                                    value={videoFormData.titleEs}
+                                    onChange={(e) => setVideoFormData({ ...videoFormData, titleEs: e.target.value })}
+                                  />
+                                  <Input
+                                    type="number"
+                                    placeholder="Orden (1, 2, 3...)"
+                                    value={videoFormData.videoOrder}
+                                    onChange={(e) => setVideoFormData({ ...videoFormData, videoOrder: parseInt(e.target.value) || 1 })}
+                                  />
+                                </div>
+                                <Textarea
+                                  placeholder="Descripción (opcional)"
+                                  value={videoFormData.description}
+                                  onChange={(e) => setVideoFormData({ ...videoFormData, description: e.target.value })}
+                                  rows={2}
+                                />
+                                <Button
+                                  onClick={() => {
+                                    if (!videoFormData.videoUrl || !videoFormData.title) {
+                                      toast({
+                                        title: "Error",
+                                        description: "URL y título son requeridos",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    createVideoMutation.mutate({ moduleId: module.id, data: videoFormData });
+                                  }}
+                                  disabled={createVideoMutation.isPending}
+                                  className="bg-brand-orange hover:bg-orange-600 text-white"
+                                >
+                                  {createVideoMutation.isPending ? "Agregando..." : "Agregar Video"}
+                                </Button>
+                              </div>
+                              
+                              {/* Videos List */}
+                              <div className="space-y-2">
+                                {moduleVideos.length === 0 ? (
+                                  <p className="text-sm text-brand-brown text-center py-4">
+                                    No hay videos en este módulo. Agrega el primero arriba.
+                                  </p>
+                                ) : (
+                                  moduleVideos
+                                    .sort((a: any, b: any) => a.videoOrder - b.videoOrder)
+                                    .map((video: any) => (
+                                      <div key={video.id} className="bg-white p-3 rounded-lg border flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <Badge variant="outline">#{video.videoOrder}</Badge>
+                                            <h5 className="font-medium text-brand-dark-green">{video.title}</h5>
+                                          </div>
+                                          {video.description && (
+                                            <p className="text-sm text-brand-brown mt-1">{video.description}</p>
+                                          )}
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-red-600"
+                                          onClick={() => {
+                                            if (confirm("¿Estás seguro de eliminar este video?")) {
+                                              deleteVideoMutation.mutate(video.id);
+                                            }
+                                          }}
+                                          disabled={deleteVideoMutation.isPending}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="text-red-600">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
