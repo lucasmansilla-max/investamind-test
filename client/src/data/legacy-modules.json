@@ -1,0 +1,306 @@
+[
+  {
+    "id": 1,
+    "title": "Quick Start Guide",
+    "subtitle": "7-Day Foundation Course",
+    "icon": "🚀",
+    "totalLessons": 7,
+    "completedLessons": 0,
+    "estimatedTime": "1.5 hours",
+    "status": "locked",
+    "description": "Master the fundamentals of investing in just one week",
+    "lessons": [
+      {
+        "id": 1,
+        "title": "Day 1: Stock Market Basics",
+        "duration": "12 minutes",
+        "status": "locked",
+        "description": "Understanding what stocks are and how markets work"
+      },
+      {
+        "id": 2,
+        "title": "Day 2: How Trading Works",
+        "duration": "10 minutes",
+        "status": "locked",
+        "description": "The mechanics of buying and selling stocks"
+      },
+      {
+        "id": 3,
+        "title": "Day 3: Types of Orders",
+        "duration": "8 minutes",
+        "status": "locked",
+        "description": "Market orders, limit orders, and stop-loss explained"
+      },
+      {
+        "id": 4,
+        "title": "Day 4: Risk Management Basics",
+        "duration": "15 minutes",
+        "status": "locked",
+        "description": "Protecting your investments and managing risk"
+      },
+      {
+        "id": 5,
+        "title": "Day 5: Building Your First Portfolio",
+        "duration": "12 minutes",
+        "status": "locked",
+        "description": "Creating a balanced investment portfolio"
+      },
+      {
+        "id": 6,
+        "title": "Day 6: Common Beginner Mistakes",
+        "duration": "10 minutes",
+        "status": "locked",
+        "description": "Avoiding costly investing mistakes"
+      },
+      {
+        "id": 7,
+        "title": "Day 7: Your Investment Plan",
+        "duration": "18 minutes",
+        "status": "locked",
+        "description": "Creating your personal investment strategy"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Stock Fundamentals",
+    "subtitle": "Understanding Company Analysis",
+    "icon": "📊",
+    "totalLessons": 6,
+    "completedLessons": 0,
+    "estimatedTime": "2 hours",
+    "status": "locked",
+    "description": "Deep dive into analyzing and valuing companies",
+    "lessons": [
+      {
+        "id": 8,
+        "title": "Understanding Company Financials",
+        "duration": "20 minutes",
+        "status": "locked",
+        "description": "Reading balance sheets, income statements, and cash flow"
+      },
+      {
+        "id": 9,
+        "title": "Reading Financial Statements",
+        "duration": "18 minutes",
+        "status": "locked",
+        "description": "Key metrics and ratios for stock analysis"
+      },
+      {
+        "id": 10,
+        "title": "Valuation Methods",
+        "duration": "22 minutes",
+        "status": "locked",
+        "description": "P/E ratios, DCF models, and comparative analysis"
+      },
+      {
+        "id": 11,
+        "title": "Dividend Investing",
+        "duration": "15 minutes",
+        "status": "locked",
+        "description": "Building income through dividend-paying stocks"
+      },
+      {
+        "id": 12,
+        "title": "Growth vs Value Stocks",
+        "duration": "16 minutes",
+        "status": "locked",
+        "description": "Understanding different investment styles"
+      },
+      {
+        "id": 13,
+        "title": "Sector Analysis",
+        "duration": "19 minutes",
+        "status": "locked",
+        "description": "Analyzing industries and market sectors"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Technical Analysis",
+    "subtitle": "Chart Reading & Patterns",
+    "icon": "📈",
+    "totalLessons": 8,
+    "completedLessons": 0,
+    "estimatedTime": "3 hours",
+    "status": "locked",
+    "description": "Master the art of reading charts and technical indicators",
+    "lessons": [
+      {
+        "id": 14,
+        "title": "Chart Reading Basics",
+        "duration": "25 minutes",
+        "status": "locked",
+        "description": "Understanding candlesticks, timeframes, and basic patterns"
+      },
+      {
+        "id": 15,
+        "title": "Support and Resistance",
+        "duration": "20 minutes",
+        "status": "locked",
+        "description": "Identifying key price levels and breakouts"
+      },
+      {
+        "id": 16,
+        "title": "Trend Analysis",
+        "duration": "18 minutes",
+        "status": "locked",
+        "description": "Recognizing and trading with market trends"
+      },
+      {
+        "id": 17,
+        "title": "Moving Averages",
+        "duration": "22 minutes",
+        "status": "locked",
+        "description": "Using moving averages for trend confirmation"
+      },
+      {
+        "id": 18,
+        "title": "Volume Analysis",
+        "duration": "16 minutes",
+        "status": "locked",
+        "description": "Understanding volume patterns and confirmation"
+      },
+      {
+        "id": 19,
+        "title": "Chart Patterns",
+        "duration": "28 minutes",
+        "status": "locked",
+        "description": "Head and shoulders, triangles, and reversal patterns"
+      },
+      {
+        "id": 20,
+        "title": "Technical Indicators",
+        "duration": "24 minutes",
+        "status": "locked",
+        "description": "RSI, MACD, Bollinger Bands, and oscillators"
+      },
+      {
+        "id": 21,
+        "title": "Putting It All Together",
+        "duration": "30 minutes",
+        "status": "locked",
+        "description": "Combining technical analysis for trading decisions"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Portfolio Management",
+    "subtitle": "Building Wealth Systematically",
+    "icon": "🎯",
+    "totalLessons": 6,
+    "completedLessons": 0,
+    "estimatedTime": "2.5 hours",
+    "status": "locked",
+    "description": "Advanced portfolio construction and management strategies",
+    "lessons": [
+      {
+        "id": 22,
+        "title": "Asset Allocation",
+        "duration": "25 minutes",
+        "status": "locked",
+        "description": "Balancing stocks, bonds, and alternative investments"
+      },
+      {
+        "id": 23,
+        "title": "Diversification Strategies",
+        "duration": "20 minutes",
+        "status": "locked",
+        "description": "Reducing risk through proper diversification"
+      },
+      {
+        "id": 24,
+        "title": "Rebalancing",
+        "duration": "18 minutes",
+        "status": "locked",
+        "description": "Maintaining your target allocation over time"
+      },
+      {
+        "id": 25,
+        "title": "Tax Considerations",
+        "duration": "22 minutes",
+        "status": "locked",
+        "description": "Tax-efficient investing strategies"
+      },
+      {
+        "id": 26,
+        "title": "Performance Tracking",
+        "duration": "16 minutes",
+        "status": "locked",
+        "description": "Measuring and evaluating portfolio performance"
+      },
+      {
+        "id": 27,
+        "title": "Long-term Planning",
+        "duration": "24 minutes",
+        "status": "locked",
+        "description": "Setting and achieving long-term financial goals"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Advanced Strategies",
+    "subtitle": "Professional Techniques",
+    "icon": "⚡",
+    "totalLessons": 7,
+    "completedLessons": 0,
+    "estimatedTime": "3.5 hours",
+    "status": "locked",
+    "description": "Advanced investing strategies for experienced investors",
+    "lessons": [
+      {
+        "id": 28,
+        "title": "Options Basics",
+        "duration": "30 minutes",
+        "status": "locked",
+        "description": "Introduction to options trading and strategies"
+      },
+      {
+        "id": 29,
+        "title": "ETF Investing",
+        "duration": "25 minutes",
+        "status": "locked",
+        "description": "Exchange-traded funds and passive investing"
+      },
+      {
+        "id": 30,
+        "title": "International Markets",
+        "duration": "28 minutes",
+        "status": "locked",
+        "description": "Investing in global markets and currencies"
+      },
+      {
+        "id": 31,
+        "title": "Alternative Investments",
+        "duration": "32 minutes",
+        "status": "locked",
+        "description": "REITs, commodities, and alternative assets"
+      },
+      {
+        "id": 32,
+        "title": "Market Psychology",
+        "duration": "26 minutes",
+        "status": "locked",
+        "description": "Understanding market emotions and behavioral finance"
+      },
+      {
+        "id": 33,
+        "title": "Economic Indicators",
+        "duration": "24 minutes",
+        "status": "locked",
+        "description": "Using economic data for investment decisions"
+      },
+      {
+        "id": 34,
+        "title": "Building Wealth Over Time",
+        "duration": "35 minutes",
+        "status": "locked",
+        "description": "Long-term wealth building strategies and mindset"
+      }
+    ]
+  }
+]
+

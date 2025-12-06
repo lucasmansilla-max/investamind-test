@@ -170,6 +170,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(progress);
   }));
 
+  // Get video progress endpoint
+  app.get("/api/progress/video/:videoId", asyncHandler(async (req, res) => {
+    const sessionId = req.cookies?.sessionId;
+    if (!sessionId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const sessions = (global as any).__sessions;
+    if (!sessions) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+
+    const videoId = parseInt(req.params.videoId);
+    if (isNaN(videoId)) {
+      return res.status(400).json({ message: "Invalid video ID" });
+    }
+
+    const progress = await storage.getUserVideoProgress(session.userId, videoId);
+    res.json(progress || null);
+  }));
+
+  // Video progress tracking endpoint
+  app.post("/api/progress/video", asyncHandler(async (req, res) => {
+    const sessionId = req.cookies?.sessionId;
+    if (!sessionId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const sessions = (global as any).__sessions;
+    if (!sessions) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+
+    const { videoId, watchedSeconds, totalSeconds, percentage, completed } = req.body;
+
+    if (!videoId || typeof watchedSeconds !== 'number' || typeof totalSeconds !== 'number' || typeof percentage !== 'number') {
+      return res.status(400).json({ message: "Invalid request data" });
+    }
+
+    // Get existing progress or create new
+    const existingProgress = await storage.getUserVideoProgress(session.userId, videoId);
+    
+    // Ensure percentage doesn't exceed 100%
+    const validPercentage = Math.min(Math.max(percentage, 0), 100);
+    // Ensure watchedSeconds doesn't exceed totalSeconds
+    const validWatchedSeconds = Math.min(Math.max(watchedSeconds, 0), totalSeconds);
+    
+    const progressData = {
+      userId: session.userId,
+      videoId,
+      watchedSeconds: Math.max(validWatchedSeconds, existingProgress?.watchedSeconds || 0),
+      totalSeconds: totalSeconds,
+      completionPercentage: Math.min(Math.max(validPercentage, existingProgress?.completionPercentage || 0), 100), // Cap at 100%
+      completed: completed || false,
+    };
+
+    const progress = await storage.updateUserVideoProgress(progressData);
+    res.json(progress);
+  }));
+
   // Market recaps routes
   app.get("/api/market-recaps", asyncHandler(async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 3;

@@ -6,7 +6,9 @@ import { db } from "./config/db";
 import {
   users,
   learningModules,
+  moduleVideos,
   userProgress,
+  userVideoProgress,
   marketRecaps,
   notifications,
   communityPosts,
@@ -21,8 +23,12 @@ import {
   type InsertUser,
   type LearningModule,
   type InsertLearningModule,
+  type ModuleVideo,
+  type InsertModuleVideo,
   type UserProgress,
   type InsertUserProgress,
+  type UserVideoProgress,
+  type InsertUserVideoProgress,
   type MarketRecap,
   type InsertMarketRecap,
   type Notification,
@@ -86,14 +92,93 @@ export class DbStorage implements IStorage {
   }
 
   async createModule(insertModule: InsertLearningModule): Promise<LearningModule> {
-    // Normalize quizOptions to ensure they are string[] or null/undefined for Drizzle
-    const normalizedModule = {
-      ...insertModule,
-      quizOptions: insertModule.quizOptions as string[] | null | undefined,
-      quizOptionsEs: insertModule.quizOptionsEs as string[] | null | undefined,
-    };
-    const [module] = await db.insert(learningModules).values(normalizedModule).returning();
+    const [module] = await db.insert(learningModules).values(insertModule).returning();
     return module;
+  }
+
+  async checkOrderIndexExists(orderIndex: number, excludeModuleId?: number): Promise<boolean> {
+    if (excludeModuleId) {
+      const [existing] = await db
+        .select()
+        .from(learningModules)
+        .where(and(
+          eq(learningModules.orderIndex, orderIndex),
+          sql`${learningModules.id} != ${excludeModuleId}`
+        ));
+      return !!existing;
+    } else {
+      const [existing] = await db
+        .select()
+        .from(learningModules)
+        .where(eq(learningModules.orderIndex, orderIndex));
+      return !!existing;
+    }
+  }
+
+  // Module video operations
+  async getModuleVideos(moduleId: number): Promise<ModuleVideo[]> {
+    return await db
+      .select()
+      .from(moduleVideos)
+      .where(eq(moduleVideos.moduleId, moduleId))
+      .orderBy(moduleVideos.videoOrder);
+  }
+
+  async createModuleVideo(video: InsertModuleVideo): Promise<ModuleVideo> {
+    const [created] = await db.insert(moduleVideos).values(video).returning();
+    return created;
+  }
+
+  async updateModuleVideo(videoId: number, updates: Partial<InsertModuleVideo>): Promise<ModuleVideo> {
+    const [updated] = await db
+      .update(moduleVideos)
+      .set(updates)
+      .where(eq(moduleVideos.id, videoId))
+      .returning();
+    return updated;
+  }
+
+  async deleteModuleVideo(videoId: number): Promise<void> {
+    await db.delete(moduleVideos).where(eq(moduleVideos.id, videoId));
+  }
+
+  // User video progress operations
+  async getUserVideoProgress(userId: number, videoId: number): Promise<UserVideoProgress | undefined> {
+    const [progress] = await db
+      .select()
+      .from(userVideoProgress)
+      .where(and(eq(userVideoProgress.userId, userId), eq(userVideoProgress.videoId, videoId)));
+    return progress;
+  }
+
+  async updateUserVideoProgress(progress: InsertUserVideoProgress): Promise<UserVideoProgress> {
+    const existing = await this.getUserVideoProgress(progress.userId, progress.videoId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(userVideoProgress)
+        .set({
+          ...progress,
+          completedAt: progress.completed ? new Date() : existing.completedAt,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(userVideoProgress.userId, progress.userId),
+          eq(userVideoProgress.videoId, progress.videoId)
+        ))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userVideoProgress)
+        .values({
+          ...progress,
+          completedAt: progress.completed ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .returning();
+      return created;
+    }
   }
 
   // User progress operations

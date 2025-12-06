@@ -1,7 +1,9 @@
 import {
   users,
   learningModules,
+  moduleVideos,
   userProgress,
+  userVideoProgress,
   marketRecaps,
   notifications,
   communityPosts,
@@ -12,8 +14,12 @@ import {
   type InsertUser,
   type LearningModule,
   type InsertLearningModule,
+  type ModuleVideo,
+  type InsertModuleVideo,
   type UserProgress,
   type InsertUserProgress,
+  type UserVideoProgress,
+  type InsertUserVideoProgress,
   type MarketRecap,
   type InsertMarketRecap,
   type Notification,
@@ -40,11 +46,22 @@ export interface IStorage {
   getAllModules(): Promise<LearningModule[]>;
   getModule(id: number): Promise<LearningModule | undefined>;
   createModule(module: InsertLearningModule): Promise<LearningModule>;
+  checkOrderIndexExists(orderIndex: number, excludeModuleId?: number): Promise<boolean>;
+  
+  // Module video operations
+  getModuleVideos(moduleId: number): Promise<ModuleVideo[]>;
+  createModuleVideo(video: InsertModuleVideo): Promise<ModuleVideo>;
+  updateModuleVideo(videoId: number, updates: Partial<InsertModuleVideo>): Promise<ModuleVideo>;
+  deleteModuleVideo(videoId: number): Promise<void>;
   
   // User progress operations
   getUserProgress(userId: number): Promise<UserProgress[]>;
   getModuleProgress(userId: number, moduleId: number): Promise<UserProgress | undefined>;
   updateProgress(progress: InsertUserProgress): Promise<UserProgress>;
+  
+  // User video progress operations
+  getUserVideoProgress(userId: number, videoId: number): Promise<UserVideoProgress | undefined>;
+  updateUserVideoProgress(progress: InsertUserVideoProgress): Promise<UserVideoProgress>;
   
   // Market recap operations
   getRecentRecaps(limit?: number): Promise<MarketRecap[]>;
@@ -111,7 +128,9 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private modules: Map<number, LearningModule>;
+  private moduleVideos: Map<number, ModuleVideo>;
   private progress: Map<string, UserProgress>;
+  private videoProgress: Map<string, UserVideoProgress>; // key: "userId-videoId"
   private recaps: Map<number, MarketRecap>;
   private notifications: Map<number, Notification>;
   private posts: Map<number, CommunityPost>;
@@ -125,7 +144,9 @@ export class MemStorage implements IStorage {
   private webhookLogs: Map<number, any>; // WebhookLog
   private currentUserId: number;
   private currentModuleId: number;
+  private currentVideoId: number;
   private currentProgressId: number;
+  private currentVideoProgressId: number;
   private currentRecapId: number;
   private currentNotificationId: number;
   private currentPostId: number;
@@ -138,7 +159,9 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     this.modules = new Map();
+    this.moduleVideos = new Map();
     this.progress = new Map();
+    this.videoProgress = new Map();
     this.recaps = new Map();
     this.notifications = new Map();
     this.posts = new Map();
@@ -152,7 +175,9 @@ export class MemStorage implements IStorage {
     this.webhookLogs = new Map();
     this.currentUserId = 1;
     this.currentModuleId = 1;
+    this.currentVideoId = 1;
     this.currentProgressId = 1;
+    this.currentVideoProgressId = 1;
     this.currentRecapId = 1;
     this.currentNotificationId = 1;
     this.currentPostId = 1;
@@ -167,216 +192,7 @@ export class MemStorage implements IStorage {
   }
 
   private initializeSampleData() {
-    // Create learning modules for different experience levels
-    const moduleData = [
-      // PRINCIPIANTE - Quick Start: 7-Day Foundation
-      {
-        title: "Stock Market Basics",
-        description: "Día 1: Fundamentos del mercado",
-        content: "El mercado de valores es donde se compran y venden acciones de empresas. Las acciones representan una parte de propiedad en una empresa.",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 1,
-        estimatedMinutes: 15,
-        isLocked: false,
-        quizQuestion: "¿Qué representa una acción?",
-        quizOptions: ["Una deuda de la empresa", "Una parte de propiedad", "Un préstamo", "Un seguro"],
-        correctAnswer: "Una parte de propiedad"
-      },
-      {
-        title: "How Trading Works",
-        description: "Día 2: Cómo funciona el trading",
-        content: "El trading implica comprar barato y vender caro. Se puede hacer en línea através de brokers que conectan con el mercado.",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 2,
-        estimatedMinutes: 12,
-        isLocked: false,
-        quizQuestion: "¿Cuál es el objetivo básico del trading?",
-        quizOptions: ["Comprar caro y vender barato", "Comprar barato y vender caro", "Solo comprar", "Solo vender"],
-        correctAnswer: "Comprar barato y vender caro"
-      },
-      {
-        title: "Types of Orders",
-        description: "Día 3: Tipos de órdenes de compra/venta",
-        content: "Existen diferentes tipos de órdenes: Market (inmediata), Limit (precio específico), Stop-Loss (protección), y Stop-Limit (combinación).",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 3,
-        estimatedMinutes: 10,
-        isLocked: false,
-        quizQuestion: "¿Qué tipo de orden se ejecuta inmediatamente?",
-        quizOptions: ["Limit Order", "Market Order", "Stop-Loss", "Pending Order"],
-        correctAnswer: "Market Order"
-      },
-      {
-        title: "Reading Charts",
-        description: "Día 4: Interpretación de gráficos básicos",
-        content: "Los gráficos muestran el movimiento de precios. Aprende a leer velas, identificar tendencias alcistas y bajistas, y usar indicadores simples.",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 4,
-        estimatedMinutes: 15,
-        isLocked: false,
-        quizQuestion: "¿Qué indica una tendencia alcista?",
-        quizOptions: ["Precios bajando", "Precios subiendo", "Precios estables", "Alta volatilidad"],
-        correctAnswer: "Precios subiendo"
-      },
-      {
-        title: "Risk Management",
-        description: "Día 5: Gestión de riesgos fundamentales",
-        content: "Nunca inviertas más de lo que puedes permitirte perder. Diversifica tu cartera y usa stop-loss para limitar pérdidas.",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 5,
-        estimatedMinutes: 12,
-        isLocked: false,
-        quizQuestion: "¿Cuál es la regla de oro en inversiones?",
-        quizOptions: ["Invertir todo el dinero", "Solo seguir tendencias", "No invertir más de lo que puedes perder", "Siempre comprar barato"],
-        correctAnswer: "No invertir más de lo que puedes perder"
-      },
-      {
-        title: "Choosing a Broker",
-        description: "Día 6: Selección de broker",
-        content: "Factores importantes: comisiones, plataforma fácil de usar, regulación, atención al cliente, y instrumentos disponibles.",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 6,
-        estimatedMinutes: 10,
-        isLocked: false,
-        quizQuestion: "¿Qué es lo más importante al elegir un broker?",
-        quizOptions: ["Solo las comisiones bajas", "Regulación y seguridad", "Muchos instrumentos", "Publicidad atractiva"],
-        correctAnswer: "Regulación y seguridad"
-      },
-      {
-        title: "First Strategy",
-        description: "Día 7: Tu primera estrategia simple",
-        content: "Estrategia básica: comprar en soporte, vender en resistencia. Usa stop-loss del 2-3% y toma ganancias del 5-8%.",
-        experienceLevel: "principiante",
-        category: "quick-start",
-        orderIndex: 7,
-        estimatedMinutes: 15,
-        isLocked: false,
-        quizQuestion: "¿Qué porcentaje es recomendable para stop-loss inicial?",
-        quizOptions: ["10-15%", "2-3%", "20-25%", "1%"],
-        correctAnswer: "2-3%"
-      },
-      // INTERMEDIO - Quick Start: 3-Day Strategy Enhancement
-      {
-        title: "Technical Analysis",
-        description: "Día 1: Análisis técnico avanzado",
-        content: "Aprende indicadores como RSI, MACD, Bandas de Bollinger y patrones de velas japonesas para timing de entrada y salida.",
-        experienceLevel: "intermedio",
-        category: "quick-start",
-        orderIndex: 1,
-        estimatedMinutes: 20,
-        isLocked: false,
-        quizQuestion: "¿Qué indica un RSI por encima de 70?",
-        quizOptions: ["Sobreventa", "Sobrecompra", "Tendencia lateral", "Volatilidad alta"],
-        correctAnswer: "Sobrecompra"
-      },
-      {
-        title: "Market Sectors",
-        description: "Día 2: Sectores del mercado",
-        content: "Tecnología, salud, financiero, energía, consumo. Cada sector tiene características y ciclos específicos.",
-        experienceLevel: "intermedio",
-        category: "quick-start",
-        orderIndex: 2,
-        estimatedMinutes: 15,
-        isLocked: false,
-        quizQuestion: "¿Qué sector suele ser defensivo en recesiones?",
-        quizOptions: ["Tecnología", "Salud", "Construcción", "Lujo"],
-        correctAnswer: "Salud"
-      },
-      {
-        title: "Portfolio Optimization",
-        description: "Día 3: Optimización de cartera",
-        content: "Balanceo de activos, rebalanceo periódico, correlaciones entre assets y gestión de riesgo por sector.",
-        experienceLevel: "intermedio",
-        category: "quick-start",
-        orderIndex: 3,
-        estimatedMinutes: 18,
-        isLocked: false,
-        quizQuestion: "¿Con qué frecuencia se recomienda rebalancear?",
-        quizOptions: ["Diariamente", "Semanalmente", "Mensual/Trimestral", "Anualmente"],
-        correctAnswer: "Mensual/Trimestral"
-      },
-      {
-        title: "Risk Management",
-        description: "Protecting your investments",
-        content: "Risk management involves diversification, position sizing, and understanding your risk tolerance. Never invest more than you can afford to lose.",
-        orderIndex: 4,
-        isLocked: true,
-        quizQuestion: "What is the primary benefit of diversification?",
-        quizOptions: ["Higher returns", "Reducing overall risk", "Lower fees", "Better timing"],
-        correctAnswer: "Reducing overall risk"
-      },
-      {
-        title: "Portfolio Building",
-        description: "Diversification strategies",
-        content: "A well-balanced portfolio includes different asset classes, sectors, and geographic regions to optimize risk-adjusted returns.",
-        orderIndex: 5,
-        isLocked: true,
-        quizQuestion: "What percentage of a portfolio should typically be in stocks for a young investor?",
-        quizOptions: ["20-30%", "40-50%", "60-80%", "90-100%"],
-        correctAnswer: "60-80%"
-      },
-      {
-        title: "Technical Analysis",
-        description: "Chart reading basics",
-        content: "Technical analysis uses price charts and trading volume to predict future price movements and identify trading opportunities.",
-        orderIndex: 6,
-        isLocked: true,
-        quizQuestion: "What is a moving average used for?",
-        quizOptions: ["Calculating taxes", "Smoothing price data", "Setting stop losses", "Determining company value"],
-        correctAnswer: "Smoothing price data"
-      },
-      {
-        title: "Market Psychology",
-        description: "Emotional trading pitfalls",
-        content: "Understanding market psychology helps avoid common behavioral biases like fear, greed, and herd mentality that can lead to poor investment decisions.",
-        orderIndex: 7,
-        isLocked: true,
-        quizQuestion: "What is the biggest enemy of successful investing?",
-        quizOptions: ["High fees", "Market volatility", "Emotional decisions", "Lack of information"],
-        correctAnswer: "Emotional decisions"
-      },
-      {
-        title: "Advanced Strategies",
-        description: "Professional techniques",
-        content: "Advanced strategies include options trading, margin investing, short selling, and alternative investments like REITs and commodities.",
-        orderIndex: 8,
-        isLocked: true,
-        quizQuestion: "What is an option in investing?",
-        quizOptions: ["A type of stock", "A contract to buy/sell at a specific price", "A savings account", "A type of bond"],
-        correctAnswer: "A contract to buy/sell at a specific price"
-      }
-    ];
-
-    moduleData.forEach(data => {
-      const module: LearningModule = {
-        id: this.currentModuleId++,
-        experienceLevel: data.experienceLevel || "principiante",
-        category: data.category || "quick-start",
-        estimatedMinutes: data.estimatedMinutes || 15,
-        isLocked: data.isLocked || false,
-        quizQuestion: data.quizQuestion || null,
-        quizQuestionEs: null,
-        quizOptions: data.quizOptions || null,
-        quizOptionsEs: null,
-        correctAnswer: data.correctAnswer || null,
-        correctAnswerEs: null,
-        title: data.title,
-        titleEs: null,
-        description: data.description,
-        descriptionEs: null,
-        content: data.content,
-        contentEs: null,
-        orderIndex: data.orderIndex,
-        createdAt: new Date(),
-      };
-      this.modules.set(module.id, module);
-    });
+    // No hardcoded modules - all modules will be created by admin through the UI
 
     // Create market recaps
     const recapData = [
@@ -476,6 +292,15 @@ export class MemStorage implements IStorage {
     return this.modules.get(id);
   }
 
+  async checkOrderIndexExists(orderIndex: number, excludeModuleId?: number): Promise<boolean> {
+    for (const module of this.modules.values()) {
+      if (module.orderIndex === orderIndex && (!excludeModuleId || module.id !== excludeModuleId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async createModule(insertModule: InsertLearningModule): Promise<LearningModule> {
     const id = this.currentModuleId++;
     const module: LearningModule = {
@@ -484,23 +309,80 @@ export class MemStorage implements IStorage {
       titleEs: insertModule.titleEs ?? null,
       description: insertModule.description,
       descriptionEs: insertModule.descriptionEs ?? null,
-      content: insertModule.content,
-      contentEs: insertModule.contentEs ?? null,
-      experienceLevel: insertModule.experienceLevel,
-      category: insertModule.category,
       orderIndex: insertModule.orderIndex,
-      estimatedMinutes: insertModule.estimatedMinutes ?? 10,
-      isLocked: insertModule.isLocked ?? true,
-      quizQuestion: insertModule.quizQuestion ?? null,
-      quizQuestionEs: insertModule.quizQuestionEs ?? null,
-      quizOptions: (insertModule.quizOptions as string[] | null) ?? null,
-      quizOptionsEs: (insertModule.quizOptionsEs as string[] | null) ?? null,
-      correctAnswer: insertModule.correctAnswer ?? null,
-      correctAnswerEs: insertModule.correctAnswerEs ?? null,
+      isPremium: insertModule.isPremium ?? false,
       createdAt: new Date(),
     };
     this.modules.set(id, module);
     return module;
+  }
+
+  // Module video operations
+  async getModuleVideos(moduleId: number): Promise<ModuleVideo[]> {
+    return Array.from(this.moduleVideos.values())
+      .filter(v => v.moduleId === moduleId)
+      .sort((a, b) => a.videoOrder - b.videoOrder);
+  }
+
+  async createModuleVideo(video: InsertModuleVideo): Promise<ModuleVideo> {
+    const id = this.currentVideoId++;
+    const created: ModuleVideo = {
+      id,
+      moduleId: video.moduleId,
+      videoUrl: video.videoUrl,
+      title: video.title,
+      titleEs: video.titleEs ?? null,
+      description: video.description ?? null,
+      descriptionEs: video.descriptionEs ?? null,
+      videoOrder: video.videoOrder,
+      createdAt: new Date(),
+    };
+    this.moduleVideos.set(id, created);
+    return created;
+  }
+
+  async updateModuleVideo(videoId: number, updates: Partial<InsertModuleVideo>): Promise<ModuleVideo> {
+    const existing = this.moduleVideos.get(videoId);
+    if (!existing) {
+      throw new Error("Video not found");
+    }
+    const updated: ModuleVideo = {
+      ...existing,
+      ...updates,
+    };
+    this.moduleVideos.set(videoId, updated);
+    return updated;
+  }
+
+  async deleteModuleVideo(videoId: number): Promise<void> {
+    this.moduleVideos.delete(videoId);
+  }
+
+  // User video progress operations
+  async getUserVideoProgress(userId: number, videoId: number): Promise<UserVideoProgress | undefined> {
+    const key = `${userId}-${videoId}`;
+    return this.videoProgress.get(key);
+  }
+
+  async updateUserVideoProgress(progress: InsertUserVideoProgress): Promise<UserVideoProgress> {
+    const key = `${progress.userId}-${progress.videoId}`;
+    const existing = this.videoProgress.get(key);
+    
+    const videoProgress: UserVideoProgress = {
+      id: existing?.id || this.currentVideoProgressId++,
+      userId: progress.userId,
+      videoId: progress.videoId,
+      watchedSeconds: progress.watchedSeconds ?? 0,
+      totalSeconds: progress.totalSeconds ?? null,
+      completionPercentage: progress.completionPercentage ?? 0,
+      completed: progress.completed ?? false,
+      completedAt: progress.completed ? new Date() : existing?.completedAt ?? null,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    
+    this.videoProgress.set(key, videoProgress);
+    return videoProgress;
   }
 
   async getUserProgress(userId: number): Promise<UserProgress[]> {
@@ -520,8 +402,7 @@ export class MemStorage implements IStorage {
       id: existing?.id || this.currentProgressId++,
       userId: insertProgress.userId,
       moduleId: insertProgress.moduleId,
-      completed: insertProgress.completed || null,
-      quizPassed: insertProgress.quizPassed || null,
+      completed: insertProgress.completed || false,
       completedAt: insertProgress.completed ? new Date() : existing?.completedAt || null,
       createdAt: existing?.createdAt || new Date(),
     };
