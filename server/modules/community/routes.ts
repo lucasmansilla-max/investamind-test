@@ -131,9 +131,26 @@ router.get(
  */
 const createCommunityPostSchema = z.object({
   content: postContentSchema,
-  messageType: z.enum(['general', 'signal', 'trading_alert']).optional(),
+  messageType: z.string().optional(),
   postType: z.enum(['general', 'ad', 'advertisement']).optional().default('general'),
   imageUrl: urlSchema,
+  ticker: z.string().max(10).optional(),
+  signalData: z.object({
+    type: z.string(),
+    entryPrice: z.coerce.number().optional(),
+    targetPrice: z.coerce.number().optional(),
+    stopLoss: z.coerce.number().optional(),
+    timeframe: z.string().optional(),
+  }).optional().nullable(),
+  predictionData: z.object({
+    currentPrice: z.coerce.number().optional(),
+    predictedPrice: z.coerce.number(),
+    timeframe: z.string(),
+    confidence: z.coerce.number().min(1).max(10).optional(),
+  }).optional().nullable(),
+  analysisType: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  xpReward: z.coerce.number().int().min(0).optional(),
 });
 
 /**
@@ -152,8 +169,7 @@ router.post(
 
     const user = req.user; // Type narrowing
 
-    const { content, messageType, postType, imageUrl } = req.body;
-
+    const { content, messageType, postType, imageUrl, ticker, signalData, predictionData, analysisType, xpReward } = req.body;
     // Verify user has permission to create trading alerts
     if (messageType === "signal" || messageType === "trading_alert") {
       if (!canCreateTradingAlerts(user)) {
@@ -181,6 +197,11 @@ router.post(
       imageUrl: imageUrl || undefined,
       messageType: messageType || null,
       postType: postType,
+      ticker: ticker || undefined,
+      signalData: signalData || undefined,
+      predictionData: predictionData || undefined,
+      analysisType: analysisType || undefined,
+      xpReward: xpReward || undefined,
       io: io,
     });
 

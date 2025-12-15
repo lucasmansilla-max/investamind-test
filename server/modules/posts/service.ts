@@ -16,6 +16,11 @@ export interface CreatePostData {
   imageUrl?: string;
   messageType?: string;
   postType?: string; // 'general', 'ad', 'advertisement' for admin posts
+  ticker?: string;
+  signalData?: object;
+  predictionData?: object;
+  analysisType?: string;
+  xpReward?: number;
   io?: any; // Socket.IO instance for real-time notifications
 }
 
@@ -127,7 +132,7 @@ async function upsertMentions(postId: number, mentionMap: Map<string, number>) {
  * Create a new post
  */
 export async function createPost(data: CreatePostData) {
-  const { userId, body, imageUrl, messageType, postType, io } = data;
+  const { userId, body, imageUrl, messageType, postType, ticker, signalData, predictionData, analysisType, xpReward, io } = data;
   
   // If postType is 'ad' or 'advertisement', verify user is admin
   if (postType === 'ad' || postType === 'advertisement') {
@@ -151,20 +156,27 @@ export async function createPost(data: CreatePostData) {
   const mentionUserIds = await resolveMentions(mentions);
   
   // Create post
+  const insertData = {
+    userId,
+    content: body,
+    imageUrl,
+    messageType: messageType || null,
+    postType: postType || 'general',
+    ticker: ticker || null,
+    signalData: signalData || null,
+    predictionData: predictionData || null,
+    analysisType: analysisType || null,
+    xpReward: xpReward || 0,
+    tags: {
+      hashtags,
+      mentions: Array.from(mentionUserIds.entries()).map(([handle, id]) => ({ handle, userId: id })),
+      tickers,
+    },
+  };
+  
   const [post] = await db
     .insert(communityPosts)
-    .values({
-      userId,
-      content: body,
-      imageUrl,
-      messageType: messageType || null,
-      postType: postType || 'general',
-      tags: {
-        hashtags,
-        mentions: Array.from(mentionUserIds.entries()).map(([handle, id]) => ({ handle, userId: id })),
-        tickers,
-      },
-    })
+    .values(insertData)
     .returning();
   
   // Upsert hashtags and mentions to separate tables

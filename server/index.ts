@@ -66,7 +66,6 @@ const app = createApp();
   server.listen({
     port: env.PORT,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`Server running on port ${env.PORT}`);
     log(`Environment: ${env.NODE_ENV}`);
