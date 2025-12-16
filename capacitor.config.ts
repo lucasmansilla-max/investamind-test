@@ -13,7 +13,7 @@ function getLocalIP(): string {
 
   // Para emuladores, usar 10.0.2.2
   if (process.env.CAPACITOR_USE_EMULATOR === "true") {
-    return "http://10.0.2.2:5000";
+    return "http://10.0.2.2:4000";
   }
 
   // Obtener la IP local de la máquina
@@ -32,7 +32,7 @@ function getLocalIP(): string {
         if (nameLower.includes("wi-fi") || nameLower.includes("ethernet") || 
             nameLower.includes("wifi") || nameLower.includes("eth0") || 
             nameLower.includes("wlan0") || nameLower.includes("wireless")) {
-          return `http://${net.address}:5000`;
+          return `http://${net.address}:4000`;
         }
       }
     }
@@ -45,13 +45,13 @@ function getLocalIP(): string {
 
     for (const net of nets) {
       if (isIPv4(net.family) && !net.internal) {
-        return `http://${net.address}:5000`;
+        return `http://${net.address}:4000`;
       }
     }
   }
 
   // Fallback a localhost (solo funcionará si el dispositivo está en la misma máquina)
-  return "http://localhost:5000";
+  return "http://localhost:4000";
 }
 
 const config: CapacitorConfig = {
