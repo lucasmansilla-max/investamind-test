@@ -187,7 +187,6 @@ function AppContent() {
             <Route path="/reset-password" component={ResetPassword} />
             <Route path="/language" component={LanguageSelection} />
             <Route path="/" component={Welcome} />
-            <Route path="*" component={Welcome} />
           </>
         ) : (
           <>
