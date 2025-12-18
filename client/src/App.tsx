@@ -20,6 +20,7 @@ import Signup from "@/pages/signup";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import Home from "@/pages/home";
+import Profile from "@/pages/profile";
 import LearningPath from "@/pages/learning-path";
 import LearningDashboard from "@/pages/learning-dashboard";
 import LessonContent from "@/pages/lesson-content";
@@ -207,6 +208,7 @@ function AppContent() {
             <Route path="/upgrade" component={Pricing} />
             <Route path="/community" component={Community} />
             <Route path="/admin" component={Admin} />
+            <Route path="/profile" component={Profile} />
             <Route path="/" component={Home} />
             <Route component={NotFound} />
           </>

@@ -139,10 +139,15 @@ export default function Home() {
             <span className="absolute -top-1 -right-1 bg-brand-orange text-xs rounded-full w-4 h-4 flex items-center justify-center text-white font-bold">2</span>
           </button>
 
-          {/* User Profile */}
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110">
+          {/* User Profile - navigates to Profile page */}
+          <button
+            type="button"
+            onClick={() => setLocation("/profile")}
+            className="w-8 h-8 bg-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+            aria-label="Go to profile"
+          >
             <User className="w-4 h-4 text-brand-dark-green" />
-          </div>
+          </button>
         </div>
       </header>
 

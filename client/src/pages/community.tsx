@@ -41,9 +41,14 @@ export default function Community() {
               <Badge className="bg-brand-orange/10 text-brand-orange border-brand-orange/20">
                 TRADER
               </Badge>
-              <div className="w-8 h-8 bg-brand-dark-green rounded-full flex items-center justify-center text-white font-bold text-sm">
+              <button
+                type="button"
+                onClick={() => setLocation("/profile")}
+                className="w-8 h-8 bg-brand-dark-green rounded-full flex items-center justify-center text-white font-bold text-sm transition-transform duration-200 hover:scale-105"
+                aria-label="Go to profile"
+              >
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </div>
+              </button>
             </div>
           </div>
         </header>
