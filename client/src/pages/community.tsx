@@ -20,7 +20,8 @@ export default function Community() {
   const [activeTab, setActiveTab] = useState("feed");
 
   return (
-    <div className="min-h-screen bg-brand-light-green/10" style={{ paddingBottom: '90px' }}>
+    <div className="page-wrapper">
+      <div className="min-h-screen bg-brand-light-green/10 pb-20">
         {/* Header */}
         <header className="bg-brand-light-green border-b border-brand-dark-green/20 sticky top-0 z-40">
           <div className="flex items-center justify-between p-4">
@@ -103,7 +104,8 @@ export default function Community() {
           </Tabs>
         </div>
 
-      <BottomNavigation />
+        <BottomNavigation />
+      </div>
     </div>
   );
 }

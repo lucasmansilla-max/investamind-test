@@ -105,7 +105,7 @@ export default function Home() {
   });
 
   return (
-    <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+    <div className="page-wrapper">
       <div className="min-h-screen bg-brand-light-green/10">
         {/* Header */}
         <header className="bg-brand-light-green text-brand-dark-green p-4 flex items-center justify-between sticky top-0 z-40">

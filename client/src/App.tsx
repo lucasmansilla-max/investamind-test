@@ -178,7 +178,7 @@ function AppContent() {
   }
 
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-[100dvh] relative app-container overflow-hidden">
+    <div className="max-w-sm mx-auto bg-white min-h-[100dvh] relative app-container">
       <Switch>
         {!isAuthenticated ? (
           <>
@@ -188,6 +188,7 @@ function AppContent() {
             <Route path="/reset-password" component={ResetPassword} />
             <Route path="/language" component={LanguageSelection} />
             <Route path="/" component={Welcome} />
+            <Route path="*" component={NotFound} />
           </>
         ) : (
           <>
@@ -210,7 +211,7 @@ function AppContent() {
             <Route path="/admin" component={Admin} />
             <Route path="/profile" component={Profile} />
             <Route path="/" component={Home} />
-            <Route component={NotFound} />
+            <Route path="*" component={NotFound} />
           </>
         )}
       </Switch>

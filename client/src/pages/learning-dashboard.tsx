@@ -158,7 +158,7 @@ export default function LearningDashboard() {
 
   if (modulesLoading) {
     return (
-      <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+      <div className="page-wrapper">
         <div className="min-h-screen bg-brand-light-green/10 flex items-center justify-center">
           <div className="text-center">
             <div className="w-12 h-12 bg-brand-orange rounded-full flex items-center justify-center mb-4 mx-auto animate-pulse">

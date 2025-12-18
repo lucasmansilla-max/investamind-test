@@ -26,7 +26,7 @@ export default function Profile() {
   const roleLabel = user?.role ? user.role.toUpperCase() : "FREE";
 
   return (
-    <div className="page-wrapper" style={{ height: "100vh", maxHeight: "100vh", overflow: "auto" }}>
+    <div className="page-wrapper">
       <div className="min-h-screen bg-gray-50 pb-20">
         {/* Header */}
         <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
