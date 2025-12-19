@@ -10,7 +10,7 @@ export const users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   bio: text("bio"),
-  avatarUrl: text("avatar_url"),
+  avatarUrl: text("avatar_url"), // Base64 encoded image data with data URI (data:image/jpeg;base64,...)
   selectedLanguage: text("selected_language").default("en"),
   experienceLevel: text("experience_level"), // principiante, intermedio, avanzado
   investmentStyle: text("investment_style"), // day-swing, long-term, both
@@ -172,7 +172,8 @@ export const stories = pgTable("stories", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
-  imageUrl: text("image_url"),
+  imageData: text("image_data"), // Base64 encoded image data
+  mimeType: text("mime_type"), // MUY IMPORTANTE: image/jpeg, image/png, etc.
   // Stories are typically ephemeral (e.g., 24h). expiresAt can be used for cleanup/filtering.
   expiresAt: timestamp("expires_at"),
   isActive: boolean("is_active").default(true),

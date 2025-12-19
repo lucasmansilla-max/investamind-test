@@ -62,6 +62,12 @@ export interface IStorage {
   // User video progress operations
   getUserVideoProgress(userId: number, videoId: number): Promise<UserVideoProgress | undefined>;
   updateUserVideoProgress(progress: InsertUserVideoProgress): Promise<UserVideoProgress>;
+  getUserVideoProgressSummary(userId: number): Promise<{
+    totalVideosCompleted: number;
+    totalVideosWatched: number;
+    totalWatchTime: number;
+    averageCompletionRate: number;
+  }>;
   
   // Market recap operations
   getRecentRecaps(limit?: number): Promise<MarketRecap[]>;
@@ -367,7 +373,7 @@ export class MemStorage implements IStorage {
   async updateUserVideoProgress(progress: InsertUserVideoProgress): Promise<UserVideoProgress> {
     const key = `${progress.userId}-${progress.videoId}`;
     const existing = this.videoProgress.get(key);
-    
+
     const videoProgress: UserVideoProgress = {
       id: existing?.id || this.currentVideoProgressId++,
       userId: progress.userId,
@@ -380,9 +386,35 @@ export class MemStorage implements IStorage {
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
     };
-    
+
     this.videoProgress.set(key, videoProgress);
     return videoProgress;
+  }
+
+  async getUserVideoProgressSummary(userId: number): Promise<{
+    totalVideosCompleted: number;
+    totalVideosWatched: number;
+    totalWatchTime: number;
+    averageCompletionRate: number;
+  }> {
+    const userVideos = Array.from(this.videoProgress.values()).filter(
+      (vp) => vp.userId === userId
+    );
+
+    const totalVideosCompleted = userVideos.filter((vp) => vp.completed).length;
+    const totalVideosWatched = userVideos.length;
+    const totalWatchTime = userVideos.reduce((sum, vp) => sum + (vp.watchedSeconds || 0), 0);
+    const averageCompletionRate = 
+      userVideos.length > 0
+        ? userVideos.reduce((sum, vp) => sum + (vp.completionPercentage || 0), 0) / userVideos.length
+        : 0;
+
+    return {
+      totalVideosCompleted,
+      totalVideosWatched,
+      totalWatchTime,
+      averageCompletionRate,
+    };
   }
 
   async getUserProgress(userId: number): Promise<UserProgress[]> {
