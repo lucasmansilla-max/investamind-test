@@ -30,6 +30,7 @@ import Premium from "@/pages/premium";
 import Pricing from "@/pages/pricing";
 import Admin from "@/pages/admin";
 import Community from "@/pages/community";
+import Stories from "@/pages/stories";
 import NotFound from "@/pages/not-found";
 
 import { usePurchases } from "./hooks/use-purchases";
@@ -208,6 +209,7 @@ function AppContent() {
             <Route path="/pricing" component={Pricing} />
             <Route path="/upgrade" component={Pricing} />
             <Route path="/community" component={Community} />
+            <Route path="/stories" component={Stories} />
             <Route path="/admin" component={Admin} />
             <Route path="/profile" component={Profile} />
             <Route path="/" component={Home} />

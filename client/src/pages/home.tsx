@@ -17,6 +17,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { LearningModule, MarketRecap } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { Clock, Trophy, Flame, BookOpen, ChevronRight, TrendingUp, TrendingDown, Bell, User, BarChart3, Target, Shield } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -143,10 +144,15 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setLocation("/profile")}
-            className="w-8 h-8 bg-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+            className="transition-all duration-300 hover:scale-110"
             aria-label="Go to profile"
           >
-            <User className="w-4 h-4 text-brand-dark-green" />
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={user?.avatarUrl || undefined} alt={user?.username || "User"} className="object-cover object-center"/>
+              <AvatarFallback className="bg-white">
+                <User className="w-4 h-4 text-brand-dark-green" />
+              </AvatarFallback>
+            </Avatar>
           </button>
         </div>
       </header>
@@ -250,7 +256,7 @@ export default function Home() {
               'text-yellow-600 border-yellow-300'
             }`}>
               {marketSentiment === 'bullish' ? '📈 Bullish' :
-               marketSentiment === 'bearish' ? '📉 Bearish' : '⚖️ Neutral'}
+              marketSentiment === 'bearish' ? '📉 Bearish' : '⚖️ Neutral'}
             </Badge>
           </div>
           

@@ -19,7 +19,7 @@ interface AuthResponse {
 export function useAuth() {
   const queryClient = useQueryClient();
 
-  const { data: authData, isLoading, error } = useQuery({
+  const { data: authData, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/auth/user"],
     queryFn: async (): Promise<AuthResponse> => {
       const response = await fetch("/api/auth/user", {
@@ -50,5 +50,6 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated,
+    refetch: () => refetch(),
   };
 }
