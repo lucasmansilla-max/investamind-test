@@ -9,6 +9,9 @@ import {
   suggestUsers,
 } from "./service";
 import { asyncHandler } from "../../middlewares/error";
+import { requireAuth } from "../../middlewares/auth";
+import { storage } from "../../storage";
+import { z } from "zod";
 import {
   searchQuerySchema,
   validateRequest,
@@ -30,6 +33,54 @@ function getSession(req: Request): { userId: number } | null {
   
   return sessions.get(sessionId) || null;
 }
+
+// Update profile endpoint
+const updateProfileSchema = z.object({
+  avatarUrl: z.string().optional(), // Can be data URI (base64) or regular URL
+  bio: z.string().max(500).optional(),
+  firstName: z.string().max(50).optional(),
+  lastName: z.string().max(50).optional(),
+});
+
+router.patch(
+  "/profile",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const session = getSession(req);
+    if (!session) {
+      return res.status(401).json({ 
+        message: "Authentication required",
+        code: "AUTHENTICATION_REQUIRED"
+      });
+    }
+
+    // Validate request body
+    const validation = updateProfileSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        message: "Invalid request data",
+        errors: validation.error.errors,
+        code: "VALIDATION_ERROR"
+      });
+    }
+
+    const updates = validation.data;
+    const updatedUser = await storage.updateUser(session.userId, updates);
+
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        bio: updatedUser.bio,
+        avatarUrl: updatedUser.avatarUrl,
+      }
+    });
+  })
+);
 
 router.post(
   "/:id/follow",

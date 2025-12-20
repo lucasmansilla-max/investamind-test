@@ -20,7 +20,8 @@ export default function Community() {
   const [activeTab, setActiveTab] = useState("feed");
 
   return (
-    <div className="min-h-screen bg-brand-light-green/10" style={{ paddingBottom: '90px' }}>
+    <div className="page-wrapper">
+      <div className="min-h-screen bg-brand-light-green/10 pb-20">
         {/* Header */}
         <header className="bg-brand-light-green border-b border-brand-dark-green/20 sticky top-0 z-40">
           <div className="flex items-center justify-between p-4">
@@ -41,9 +42,14 @@ export default function Community() {
               <Badge className="bg-brand-orange/10 text-brand-orange border-brand-orange/20">
                 TRADER
               </Badge>
-              <div className="w-8 h-8 bg-brand-dark-green rounded-full flex items-center justify-center text-white font-bold text-sm">
+              <button
+                type="button"
+                onClick={() => setLocation("/profile")}
+                className="w-8 h-8 bg-brand-dark-green rounded-full flex items-center justify-center text-white font-bold text-sm transition-transform duration-200 hover:scale-105"
+                aria-label="Go to profile"
+              >
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </div>
+              </button>
             </div>
           </div>
         </header>
@@ -98,7 +104,8 @@ export default function Community() {
           </Tabs>
         </div>
 
-      <BottomNavigation />
+        <BottomNavigation />
+      </div>
     </div>
   );
 }

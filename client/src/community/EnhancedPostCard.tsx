@@ -8,6 +8,7 @@ import { MessageType } from "./MessageTypeModal";
 import RoleBadge from "@/components/RoleBadge";
 import { useSubscriptionStatus } from "@/hooks/use-subscription-status";
 import { useLanguage } from "@/contexts/language-context";
+import { useLocation } from "wouter";
 
 interface PostData {
   id: number;
@@ -41,6 +42,7 @@ interface PostData {
     firstName: string;
     lastName: string;
     currentBadge: string;
+    role?: string;
     level?: number;
     xp?: number;
   };
@@ -80,6 +82,7 @@ const getUserLevel = (xp: number = 0) => {
 
 export default function EnhancedPostCard({ post, onLike, onComment, onRepost, onBookmark, onDeactivate, onReactivate }: EnhancedPostCardProps) {
   const { t } = useLanguage();
+  const [, setLocation] = useLocation();
   const [showFullContent, setShowFullContent] = useState(false);
   const typeConfig = messageTypeConfig[post.messageType as keyof typeof messageTypeConfig] || messageTypeConfig.general;
   const userLevel = getUserLevel(post.user.xp);
@@ -211,11 +214,17 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
         <div className="p-4 pb-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-3">
-              <Avatar className="w-10 h-10">
-                <AvatarFallback className="bg-brand-dark-green text-white">
-                  {post.user.firstName[0]}{post.user.lastName[0]}
-                </AvatarFallback>
-              </Avatar>
+              <button
+                type="button"
+                onClick={() => setLocation("/profile")}
+                className="flex items-center space-x-3 group"
+                aria-label="Go to profile"
+              >
+                <Avatar className="w-10 h-10 group-hover:scale-105 transition-transform duration-200">
+                  <AvatarFallback className="bg-brand-dark-green text-white">
+                    {post.user.firstName[0]}{post.user.lastName[0]}
+                  </AvatarFallback>
+                </Avatar>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-brand-dark-green">
@@ -240,6 +249,7 @@ export default function EnhancedPostCard({ post, onLike, onComment, onRepost, on
                   </div>
                 </div>
               </div>
+              </button>
             </div>
             {post.xpReward && (
               <Badge className="bg-brand-light-green/20 text-brand-dark-green">

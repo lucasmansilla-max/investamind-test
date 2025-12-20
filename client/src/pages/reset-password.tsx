@@ -146,7 +146,7 @@ export default function ResetPassword() {
 
   if (passwordReset) {
     return (
-      <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+      <div className="page-wrapper">
         <div className="h-screen flex flex-col justify-center items-center p-6 bg-white slide-in">
           <div className="w-full max-w-sm">
             <div className="text-center mb-8">
@@ -174,7 +174,7 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+      <div className="page-wrapper">
         <div className="h-screen flex flex-col justify-center items-center p-6 bg-white slide-in">
           <div className="w-full max-w-sm text-center">
             <p className="text-gray-600 mb-4">{t("resetPassword.loading")}</p>

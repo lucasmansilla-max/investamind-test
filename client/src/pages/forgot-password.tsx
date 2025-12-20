@@ -77,7 +77,7 @@ export default function ForgotPassword() {
 
   if (emailSent) {
     return (
-      <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+      <div className="page-wrapper">
         <div className="h-screen flex flex-col justify-center items-center p-6 bg-white slide-in">
           <div className="w-full max-w-sm">
             <div className="text-center mb-8">

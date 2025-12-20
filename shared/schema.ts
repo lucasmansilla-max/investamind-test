@@ -10,7 +10,7 @@ export const users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   bio: text("bio"),
-  avatarUrl: text("avatar_url"),
+  avatarUrl: text("avatar_url"), // Base64 encoded image data with data URI (data:image/jpeg;base64,...)
   selectedLanguage: text("selected_language").default("en"),
   experienceLevel: text("experience_level"), // principiante, intermedio, avanzado
   investmentStyle: text("investment_style"), // day-swing, long-term, both
@@ -167,6 +167,31 @@ export const postComments = pgTable("post_comments", {
   deletedAt: timestamp("deleted_at"),
 });
 
+// Stories feature tables
+export const stories = pgTable("stories", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  imageData: text("image_data"), // Base64 encoded image data
+  mimeType: text("mime_type"), // MUY IMPORTANTE: image/jpeg, image/png, etc.
+  // Stories are typically ephemeral (e.g., 24h). expiresAt can be used for cleanup/filtering.
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  likesCount: integer("likes_count").default(0),
+  viewsCount: integer("views_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const storyLikes = pgTable("story_likes", {
+  id: serial("id").primaryKey(),
+  storyId: integer("story_id").references(() => stories.id, { onDelete: "cascade" }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Prevent duplicate likes per (story, user)
+  uniqueStoryLike: unique().on(table.storyId, table.userId),
+}));
+
 // Drafts for saving posts before publishing
 export const drafts = pgTable("drafts", {
   id: serial("id").primaryKey(),
@@ -284,6 +309,20 @@ export const insertNotificationSchema = createInsertSchema(notifications).pick({
   scheduledFor: true,
 });
 
+// Stories insert schemas
+export const insertStorySchema = createInsertSchema(stories).omit({
+  id: true,
+  likesCount: true,
+  viewsCount: true,
+  createdAt: true,
+  isActive: true,
+});
+
+export const insertStoryLikeSchema = createInsertSchema(storyLikes).pick({
+  storyId: true,
+  userId: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -303,6 +342,12 @@ export type MarketRecap = typeof marketRecaps.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertStory = z.infer<typeof insertStorySchema>;
+export type Story = typeof stories.$inferSelect;
+
+export type InsertStoryLike = z.infer<typeof insertStoryLikeSchema>;
+export type StoryLike = typeof storyLikes.$inferSelect;
 
 // Community feature types
 export const insertCommunityPostSchema = createInsertSchema(communityPosts).omit({

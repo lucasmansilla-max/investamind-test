@@ -17,6 +17,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { LearningModule, MarketRecap } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { Clock, Trophy, Flame, BookOpen, ChevronRight, TrendingUp, TrendingDown, Bell, User, BarChart3, Target, Shield } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -105,7 +106,7 @@ export default function Home() {
   });
 
   return (
-    <div className="page-wrapper" style={{ height: '100vh', maxHeight: '100vh', overflow: 'auto' }}>
+    <div className="page-wrapper">
       <div className="min-h-screen bg-brand-light-green/10">
         {/* Header */}
         <header className="bg-brand-light-green text-brand-dark-green p-4 flex items-center justify-between sticky top-0 z-40">
@@ -139,10 +140,20 @@ export default function Home() {
             <span className="absolute -top-1 -right-1 bg-brand-orange text-xs rounded-full w-4 h-4 flex items-center justify-center text-white font-bold">2</span>
           </button>
 
-          {/* User Profile */}
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110">
-            <User className="w-4 h-4 text-brand-dark-green" />
-          </div>
+          {/* User Profile - navigates to Profile page */}
+          <button
+            type="button"
+            onClick={() => setLocation("/profile")}
+            className="transition-all duration-300 hover:scale-110"
+            aria-label="Go to profile"
+          >
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={user?.avatarUrl || undefined} alt={user?.username || "User"} className="object-cover object-center"/>
+              <AvatarFallback className="bg-white">
+                <User className="w-4 h-4 text-brand-dark-green" />
+              </AvatarFallback>
+            </Avatar>
+          </button>
         </div>
       </header>
 
@@ -245,7 +256,7 @@ export default function Home() {
               'text-yellow-600 border-yellow-300'
             }`}>
               {marketSentiment === 'bullish' ? '📈 Bullish' :
-               marketSentiment === 'bearish' ? '📉 Bearish' : '⚖️ Neutral'}
+              marketSentiment === 'bearish' ? '📉 Bearish' : '⚖️ Neutral'}
             </Badge>
           </div>
           

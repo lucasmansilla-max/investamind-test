@@ -130,6 +130,54 @@ export const translations = {
         description: "Experienced investor seeking advanced insights"
       },
       continue: "Continue"
+    },
+    // Profile
+    profile: {
+      yourStories: "Your stories",
+      viewAll: "View all",
+      storiesDescription: "Share quick market insights or learning highlights with short stories.",
+      createFirstStory: "Create your first story",
+      createNewStory: "Create new story",
+      viewAllStories: "View all {{count}} stories",
+      learningProgress: "Learning progress",
+      yourPosts: "Your posts",
+      uploadPhoto: "Upload photo",
+      changePhoto: "Change photo",
+      photoUpdated: "Photo updated!",
+      photoUpdatedDesc: "Your profile photo has been updated successfully.",
+      onboardingComplete: "Onboarding complete"
+    },
+    // Stories
+    stories: {
+      title: "Stories",
+      subtitle: "Community insights & highlights",
+      noStoriesTitle: "No stories published yet",
+      noStoriesDescription: "Be the first to share insights with the community!",
+      createFirstStory: "Create your first story",
+      createStory: "Create Story",
+      loadMore: "Load more",
+      yourStory: "Your story",
+      placeholder: "Share a quick market insight, learning highlight, or trading tip...",
+      charactersRemaining: "characters remaining",
+      imageOptional: "Image (optional)",
+      addImage: "Add image",
+      changeImage: "Change image",
+      invalidImage: "Invalid image",
+      invalidImageDesc: "The image could not be loaded.",
+      expiresInfo: "Stories expire after 24 hours",
+      publishStory: "Publish story",
+      publishing: "Publishing...",
+      successTitle: "Story published!",
+      successDescription: "Your story has been shared with the community."
+    },
+    // Common
+    common: {
+      cancel: "Cancel",
+      save: "Save",
+      delete: "Delete",
+      edit: "Edit",
+      back: "Back",
+      error: "Error"
     }
   },
   es: {
@@ -263,6 +311,54 @@ export const translations = {
         description: "Inversor experimentado buscando insights avanzados"
       },
       continue: "Continuar"
+    },
+    // Profile
+    profile: {
+      yourStories: "Tus historias",
+      viewAll: "Ver todo",
+      storiesDescription: "Comparte insights rápidos del mercado o momentos destacados de aprendizaje con historias cortas.",
+      createFirstStory: "Crea tu primera historia",
+      createNewStory: "Crear nueva historia",
+      viewAllStories: "Ver todas las {{count}} historias",
+      learningProgress: "Progreso de aprendizaje",
+      yourPosts: "Tus publicaciones",
+      uploadPhoto: "Subir foto",
+      changePhoto: "Cambiar foto",
+      photoUpdated: "¡Foto actualizada!",
+      photoUpdatedDesc: "Tu foto de perfil ha sido actualizada exitosamente.",
+      onboardingComplete: "Onboarding completo"
+    },
+    // Stories
+    stories: {
+      title: "Historias",
+      subtitle: "Insights y momentos destacados de la comunidad",
+      noStoriesTitle: "Aún no hay historias publicadas",
+      noStoriesDescription: "¡Sé el primero en compartir insights con la comunidad!",
+      createFirstStory: "Crea tu primera historia",
+      createStory: "Crear Historia",
+      loadMore: "Cargar más",
+      yourStory: "Tu historia",
+      placeholder: "Comparte un insight rápido del mercado, momento destacado de aprendizaje o tip de trading...",
+      charactersRemaining: "caracteres restantes",
+      imageOptional: "Imagen (opcional)",
+      addImage: "Agregar imagen",
+      changeImage: "Cambiar imagen",
+      invalidImage: "Imagen inválida",
+      invalidImageDesc: "La imagen no pudo ser cargada.",
+      expiresInfo: "Las historias expiran después de 24 horas",
+      publishStory: "Publicar historia",
+      publishing: "Publicando...",
+      successTitle: "¡Historia publicada!",
+      successDescription: "Tu historia ha sido compartida con la comunidad."
+    },
+    // Common
+    common: {
+      cancel: "Cancelar",
+      save: "Guardar",
+      delete: "Eliminar",
+      edit: "Editar",
+      back: "Volver",
+      error: "Error"
     }
   }
 };
@@ -270,7 +366,7 @@ export const translations = {
 export const useTranslation = () => {
   const language = localStorage.getItem('selectedLanguage') || 'en';
 
-  const t = (key: string) => {
+  const t = (key: string, params?: Record<string, any>) => {
     const keys = key.split('.');
     let value: any = translations[language as keyof typeof translations];
 
@@ -278,7 +374,16 @@ export const useTranslation = () => {
       value = value?.[k];
     }
 
-    return value || key;
+    let result = value || key;
+
+    // Replace interpolation variables like {{count}}
+    if (params && typeof result === 'string') {
+      Object.keys(params).forEach((param) => {
+        result = result.replace(new RegExp(`{{${param}}}`, 'g'), params[param]);
+      });
+    }
+
+    return result;
   };
 
   return { t, language };

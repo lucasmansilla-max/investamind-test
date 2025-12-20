@@ -26,6 +26,7 @@ import communityRouter from "./modules/community/routes";
 import revenueCatRouter from "./modules/revenuecat/routes";
 import uploadsRouter from "./modules/uploads/routes";
 import adminRouter from "./modules/admin/routes";
+import storiesRouter from "./modules/stories/routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Legacy endpoints for mobile app (Vibecode) - kept for backward compatibility
@@ -168,6 +169,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const progress = await storage.updateProgress(progressData);
     res.json(progress);
+  }));
+
+  // Get video progress summary endpoint (must be before :videoId to avoid route conflict)
+  app.get("/api/progress/video/summary", asyncHandler(async (req, res) => {
+    const sessionId = req.cookies?.sessionId;
+    if (!sessionId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const sessions = (global as any).__sessions;
+    if (!sessions) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(401).json({ message: "Invalid session" });
+    }
+
+    const summary = await storage.getUserVideoProgressSummary(session.userId);
+    res.json(summary);
   }));
 
   // Get video progress endpoint
@@ -322,6 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/drafts", draftsRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/stories", storiesRouter);
 
   const httpServer = createServer(app);
   return httpServer;

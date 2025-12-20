@@ -20,6 +20,7 @@ import Signup from "@/pages/signup";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import Home from "@/pages/home";
+import Profile from "@/pages/profile";
 import LearningPath from "@/pages/learning-path";
 import LearningDashboard from "@/pages/learning-dashboard";
 import LessonContent from "@/pages/lesson-content";
@@ -29,6 +30,7 @@ import Premium from "@/pages/premium";
 import Pricing from "@/pages/pricing";
 import Admin from "@/pages/admin";
 import Community from "@/pages/community";
+import Stories from "@/pages/stories";
 import NotFound from "@/pages/not-found";
 
 import { usePurchases } from "./hooks/use-purchases";
@@ -177,7 +179,7 @@ function AppContent() {
   }
 
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-[100dvh] relative app-container overflow-hidden">
+    <div className="max-w-sm mx-auto bg-white min-h-[100dvh] relative app-container">
       <Switch>
         {!isAuthenticated ? (
           <>
@@ -187,7 +189,7 @@ function AppContent() {
             <Route path="/reset-password" component={ResetPassword} />
             <Route path="/language" component={LanguageSelection} />
             <Route path="/" component={Welcome} />
-            <Route path="*" component={Welcome} />
+            <Route path="*" component={NotFound} />
           </>
         ) : (
           <>
@@ -207,9 +209,11 @@ function AppContent() {
             <Route path="/pricing" component={Pricing} />
             <Route path="/upgrade" component={Pricing} />
             <Route path="/community" component={Community} />
+            <Route path="/stories" component={Stories} />
             <Route path="/admin" component={Admin} />
+            <Route path="/profile" component={Profile} />
             <Route path="/" component={Home} />
-            <Route component={NotFound} />
+            <Route path="*" component={NotFound} />
           </>
         )}
       </Switch>
