@@ -16,10 +16,40 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            // Cargar configuración desde keystore.properties si existe
+            def keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                def keystoreProperties = new Properties()
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            } else {
+                // Si no existe keystore.properties, usar debug keystore para pruebas
+                def debugKeystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
+                if (!debugKeystorePath) {
+                    def userHome = System.getProperty("user.home")
+                    debugKeystorePath = new File(userHome, ".android/debug.keystore").getAbsolutePath()
+                }
+                storeFile file(debugKeystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "android"
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "androiddebugkey"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: "android"
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
         }
     }
 }

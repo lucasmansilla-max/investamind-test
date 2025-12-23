@@ -23,7 +23,11 @@
     "android:dev": "cross-env CAPACITOR_LIVE_RELOAD=true npx cap sync android && cross-env CAPACITOR_LIVE_RELOAD=true npx cap run android",
     "dev:android": "tsx scripts/show-local-ip.ts && cross-env CAPACITOR_LIVE_RELOAD=true npx cap sync android && cross-env CAPACITOR_LIVE_RELOAD=true npx cap run android",
     "android:emulator": "cross-env CAPACITOR_USE_EMULATOR=true CAPACITOR_LIVE_RELOAD=true npx cap sync android && cross-env CAPACITOR_USE_EMULATOR=true CAPACITOR_LIVE_RELOAD=true npx cap run android",
-    "android:sync": "npx cap sync android"
+    "android:sync": "npx cap sync android",
+    "android:build:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease && cd ..",
+    "android:build:bundle": "npm run build && npx cap sync android && cd android && ./gradlew bundleRelease && cd ..",
+    "android:apk": "npm run android:build:release",
+    "android:check-apk": "powershell -ExecutionPolicy Bypass -File scripts/check-apk.ps1"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.922.0",
@@ -94,6 +98,7 @@
     "framer-motion": "^11.13.1",
     "helmet": "^8.1.0",
     "input-otp": "^1.4.2",
+    "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.453.0",
     "mailgun.js": "^12.2.0",
     "memoizee": "^0.4.17",
