@@ -12,6 +12,8 @@ import { errorHandler } from './middlewares/error';
 import { env } from './config/env';
 import { storage } from './storage';
 
+const PORT = env.PORT || 5000;
+
 // Create Express app
 const app = createApp();
 
@@ -64,10 +66,10 @@ const app = createApp();
 
   // Start server
   server.listen({
-    port: env.PORT,
+    port: PORT,
     host: "0.0.0.0",
   }, () => {
-    log(`Server running on port ${env.PORT}`);
+    log(`Server running on port ${PORT}`);
     log(`Environment: ${env.NODE_ENV}`);
     log(`CORS origins: ${env.CLIENT_ORIGINS.join(', ')}`);
   });
