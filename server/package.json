@@ -1,0 +1,11 @@
+{
+    "name": "investamind-backend",
+    "type": "module",
+    "scripts": {
+      "start": "node index.ts"
+    },
+    "dependencies": {
+      "express": "^4.21.2"
+    }
+  }
+  
