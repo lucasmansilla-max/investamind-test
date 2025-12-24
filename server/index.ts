@@ -12,7 +12,7 @@ import { errorHandler } from './middlewares/error';
 import { env } from './config/env';
 import { storage } from './storage';
 
-const PORT = env.PORT || 5000;
+const PORT = Number(process.env.PORT) || env.PORT || 5000;
 
 // Create Express app
 const app = createApp();
